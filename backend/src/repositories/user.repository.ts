@@ -18,10 +18,22 @@ export class UserRepository {
     });
   }
 
+  async findByPhone(phone:string) {
+    return prisma.user.findUnique({
+      where: {phone},
+    });
+  }
+
   async create(data: Prisma.UserCreateInput) {
     return prisma.user.create({
       data,
     });
+  }
+
+  async findByRefCode(refCode:string) {
+    return prisma.user.findUnique({
+      where: {refCode}
+    })
   }
 
   async update(id: string, data: Prisma.UserUpdateInput) {

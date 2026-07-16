@@ -1,91 +1,76 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+}
+
 model User {
-  id            String  @id @default(cuid())
-  email         String  @unique
+  id            String          @id @default(cuid())
+  email         String          @unique
   password      String
-  phone         String
-  isOrganizer   Boolean @map("is_organizer")
-  refCode       String  @unique @map("ref_code")
-  balancePoints Int     @default(0) @map("balance_points")
-
-  profile      Profiles?
-  events       Events[]
-  salesOrders  Sales_Orders[]
-  pointLedgers PointsLedgers[]
-  pointBuckets PointsBuckets[]
-  promos       Promos[]
-
-  refById String? @map("refBy")
-  refBy   User?   @relation("UserReferral", fields: [refById], references: [id])
-
-  referrals User[] @relation("UserReferral")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  phone         String          @unique
+  name          String
+  isOrganizer   Boolean         @map("is_organizer")
+  refCode       String          @unique @map("ref_code")
+  refCodeInput  String?         @map("ref_code_input")
+  balancePoints Int             @default(0) @map("balance_points")
+  refById       String?         @map("refBy")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  deletedAt     DateTime?       @map("deleted_at")
+  refreshTokens RefreshToken[]
+  events        Events[]
+  pointBuckets  PointsBuckets[]
+  pointLedgers  PointsLedgers[]
+  profile       Profiles?
+  promos        Promos[]
+  salesOrders   Sales_Orders[]
+  refBy         User?           @relation("UserReferral", fields: [refById], references: [id])
+  referrals     User[]          @relation("UserReferral")
 
   @@map("users")
 }
 
 model Profiles {
-  id        String   @id @default(cuid())
-  name      String
+  id        String    @id @default(cuid())
   dob       DateTime
-  nik       String   @unique
+  nik       String    @unique
   gender    String
-  avatarUrl String   @map("avatar_url")
-
-  //1 profile punya 1 user id
-  userId String @unique @map("user_id")
-  user   User   @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  avatarUrl String    @map("avatar_url")
+  userId    String    @unique @map("user_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
+  user      User      @relation(fields: [userId], references: [id])
 
   @@map("profiles")
 }
 
 model Events {
-  id          String   @id @default(cuid())
-  eventTitle  String   @unique
-  eventDate   DateTime @map("event_date")
-  startTime   DateTime @map("start_time")
-  endTime     DateTime @map("end_time")
-  eventDesc   String   @map("event_desc")
-  eventImg    String   @map("event_img")
-  eventTnc    String   @map("event_tnc")
-  lastBuyDate DateTime @map("last_buy_date")
-  lastBuyTime DateTime @map("last_buy_time")
-  isPublished Boolean  @default(false) @map("is_published")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-
-  //1 event 1 kategori
-  categoryId Int        @unique @map("category_id")
-  category   Categories @relation(fields: [categoryId], references: [id])
-
-  //1 event 1 venue
-  venueId Int    @unique @map("venue_id")
-  venue   Venues @relation(fields: [venueId], references: [id])
-
-  //1 organizer several events
-  organizerId String @map("organizer_id")
-  organizer   User   @relation(fields: [organizerId], references: [id])
-
-  //1 event beberapa jenis tiket
+  id          String        @id @default(cuid())
+  eventTitle  String        @unique
+  eventDate   DateTime      @map("event_date")
+  startTime   DateTime      @map("start_time")
+  endTime     DateTime      @map("end_time")
+  eventDesc   String        @map("event_desc")
+  eventImg    String        @map("event_img")
+  eventTnc    String        @map("event_tnc")
+  lastBuyDate DateTime      @map("last_buy_date")
+  lastBuyTime DateTime      @map("last_buy_time")
+  isPublished Boolean       @default(false) @map("is_published")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+  categoryId  Int           @unique @map("category_id")
+  venueId     Int           @unique @map("venue_id")
+  organizerId String        @map("organizer_id")
+  eventPromo  EventPromos[]
+  category    Categories    @relation(fields: [categoryId], references: [id])
+  organizer   User          @relation(fields: [organizerId], references: [id])
+  venue       Venues        @relation(fields: [venueId], references: [id])
   ticketTypes TicketTypes[]
-
-  //1 event beberapa promo
-  eventPromo EventPromos[]
 
   @@map("events")
 }
@@ -95,10 +80,187 @@ model Categories {
   category  String   @unique
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-
-  events Events?
+  events    Events?
 
   @@map("categories")
+}
+
+model PointsLedgers {
+  id               Int                      @id @default(autoincrement())
+  amount           Int
+  transactionType  TransactionType          @map("transaction_type")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  source           EarnSource
+  sourceId         String?                  @map("source_id")
+  customerId       String                   @map("customer_id")
+  deductionDetails PointsDeductionDetails[]
+  customer         User                     @relation(fields: [customerId], references: [id])
+
+  @@map("points_ledger")
+}
+
+model PointsBuckets {
+  id               Int                      @id @default(autoincrement())
+  earned           Int
+  remaining        Int
+  expiredAt        DateTime                 @map("expired_at")
+  earnedAt         DateTime                 @default(now()) @map("earned_at")
+  customerId       String                   @map("customer_id")
+  customer         User                     @relation(fields: [customerId], references: [id])
+  deductionDetails PointsDeductionDetails[]
+
+  @@map("points_buckets")
+}
+
+model PointsDeductionDetails {
+  id             Int           @id @default(autoincrement())
+  ledgerId       Int           @map("ledger_id")
+  bucketId       Int           @map("bucket_id")
+  amountRedeemed Int           @map("amount_redeemed")
+  bucket         PointsBuckets @relation(fields: [bucketId], references: [id])
+  ledger         PointsLedgers @relation(fields: [ledgerId], references: [id])
+
+  @@map("points_deduction_details")
+}
+
+model Coupons {
+  id           Int           @id @default(autoincrement())
+  couponCode   String        @unique @map("coupon_code")
+  couponTnc    String        @map("coupon_tnc")
+  isUsed       Boolean       @default(false) @map("is_used")
+  isRedeemed   Boolean       @default(false) @map("is_redeemed")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  promoId      Int           @map("promo_id")
+  promo        Promos        @relation(fields: [promoId], references: [id])
+  salesOrderId Sales_Orders?
+
+  @@map("coupons")
+}
+
+model Promos {
+  id            Int               @id @default(autoincrement())
+  promo_type    PromoTypes
+  promo_name    String            @unique @map("promo_name")
+  promo_tnc     String            @map("promo_tnc")
+  discountType  PromoDiscountType @map("discount_type")
+  discountValue Decimal           @map("discount_value")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  deletedAt     DateTime?         @map("deleted_at")
+  promoOwnerId  String            @map("promo_owner_id")
+  coupons       Coupons[]
+  eventPromos   EventPromos[]
+  promoOwner    User              @relation(fields: [promoOwnerId], references: [id])
+
+  @@map("promos")
+}
+
+model EventPromos {
+  id      Int    @id @default(autoincrement())
+  eventId String @map("event_id")
+  promoId Int    @map("promo_id")
+  event   Events @relation(fields: [eventId], references: [id])
+  promo   Promos @relation(fields: [promoId], references: [id])
+
+  @@map("event_promos")
+}
+
+model Venues {
+  id            Int       @id @default(autoincrement())
+  venueName     String    @map("venue_name")
+  venueAddress  String    @map("venue_address")
+  venueCity     String    @map("venue_city")
+  venueState    String    @map("venue_state")
+  venueZipCode  String    @map("venue_zip_code")
+  venuePhone    String    @map("venue_phone")
+  venueEmail    String    @map("venue_email")
+  venueGMapsUrl String    @map("venue_gmaps_url")
+  capacity      Int
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  events        Events?
+
+  @@map("venues")
+}
+
+model Sales_Orders {
+  id            String           @id @default(cuid())
+  totalPrice    Int              @map("total_price")
+  qtyTickets    Int              @map("qty_tickets")
+  discounts     Int
+  finalPrice    Int              @map("final_price")
+  pointsUsed    Int              @map("points_used")
+  status        SalesOrderStatus
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  customerId    String           @map("customer_id")
+  paymentId     String           @unique @map("payment_id")
+  couponId      Int              @unique @map("coupon_id")
+  issuedTickets IssuedTickets[]
+  coupon        Coupons          @relation(fields: [couponId], references: [id])
+  customer      User             @relation(fields: [customerId], references: [id])
+  payment       Payments         @relation(fields: [paymentId], references: [id])
+
+  @@map("sales_orders")
+}
+
+model TicketTypes {
+  id            Int             @id @default(autoincrement())
+  ticketType    String
+  price         Int
+  quota         Int
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  deletedAt     DateTime?       @map("deleted_at")
+  eventId       String          @map("event_id")
+  issuedTickets IssuedTickets[]
+  event         Events          @relation(fields: [eventId], references: [id])
+
+  @@map("ticket_types")
+}
+
+model IssuedTickets {
+  id           String       @id @default(cuid())
+  ticketCode   String       @unique @map("ticket_code")
+  isUsed       Boolean      @default(false) @map("is_used")
+  usedAt       DateTime     @map("used_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  ticketTypeId Int          @map("ticket_type_id")
+  salesOrderId String       @map("sales_order_id")
+  salesOrder   Sales_Orders @relation(fields: [salesOrderId], references: [id])
+  ticketType   TicketTypes  @relation(fields: [ticketTypeId], references: [id])
+
+  @@map("issued_tickets")
+}
+
+model Payments {
+  id            String        @id @default(cuid())
+  amount        Int
+  paymentMethod String        @map("payment_method")
+  paymentProof  String        @map("payment_proof")
+  paidAt        DateTime      @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  salesOrderId  Sales_Orders?
+
+  @@map("payments")
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  jti         String   @unique
+  tokenHash   String   @map("token_hash")
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  revokedAt   DateTime?
+
+  @@map("refresh_tokens")
 }
 
 enum EarnSource {
@@ -112,69 +274,6 @@ enum TransactionType {
   EXPIRED
 }
 
-model PointsLedgers {
-  id              Int             @id @default(autoincrement())
-  amount          Int
-  transactionType TransactionType @map("transaction_type")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  source          EarnSource
-  sourceId        String?         @map("source_id")
-
-  //1 ledger 1 customer
-  customerId       String                   @map("customer_id")
-  customer         User                     @relation(fields: [customerId], references: [id])
-  deductionDetails PointsDeductionDetails[]
-
-  @@map("points_ledger")
-}
-
-model PointsBuckets {
-  id        Int      @id @default(autoincrement())
-  earned    Int
-  remaining Int
-  expiredAt DateTime @map("expired_at")
-  earnedAt  DateTime @default(now()) @map("earned_at")
-
-  //1 point bucket 1 customer
-  customerId String @map("customer_id")
-  customer   User   @relation(fields: [customerId], references: [id])
-
-  deductionDetails PointsDeductionDetails[]
-
-  @@map("points_buckets")
-}
-
-model PointsDeductionDetails {
-  id             Int           @id @default(autoincrement())
-  ledgerId       Int           @map("ledger_id")
-  ledger         PointsLedgers @relation(fields: [ledgerId], references: [id])
-  bucketId       Int           @map("bucket_id")
-  bucket         PointsBuckets @relation(fields: [bucketId], references: [id])
-  amountRedeemed Int           @map("amount_redeemed")
-
-  @@map("points_deduction_details")
-}
-
-model Coupons {
-  id         Int      @id @default(autoincrement())
-  couponCode String   @unique @map("coupon_code")
-  couponTnc  String   @map("coupon_tnc")
-  isUsed     Boolean  @default(false) @map("is_used")
-  isRedeemed Boolean  @default(false) @map("is_redeemed")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  deletedAt  DateTime? @map("deleted_at")
-
-  //1 coupon 1 sales order
-  salesOrderId Sales_Orders?
-
-  //1 promo beberapa coupon
-  promoId Int    @map("promo_id")
-  promo   Promos @relation(fields: [promoId], references: [id])
-
-  @@map("coupons")
-}
-
 enum PromoDiscountType {
   PERCENT
   FIXED
@@ -185,144 +284,9 @@ enum PromoTypes {
   ORGANIZER
 }
 
-model Promos {
-  id            Int               @id @default(autoincrement())
-  promo_type    PromoTypes
-  promo_name    String            @unique @map("promo_name")
-  promo_tnc     String            @map("promo_tnc")
-  discountType  PromoDiscountType @map("discount_type")
-  discountValue Decimal           @map("discount_value")
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
-  deletedAt     DateTime?          @map("deleted_at")
-
-  //1 promo 1 owner
-  promoOwnerId String @map("promo_owner_id")
-  promoOwner   User?  @relation(fields: [promoOwnerId], references: [id])
-
-  eventPromos EventPromos[]
-
-  coupons Coupons[]
-
-  @@map("promos")
-}
-
-model EventPromos {
-  id      Int    @id @default(autoincrement())
-  eventId String @map("event_id")
-  event   Events @relation(fields: [eventId], references: [id])
-  promoId Int    @map("promo_id")
-  promo   Promos @relation(fields: [promoId], references: [id])
-
-  @@map("event_promos")
-}
-
-model Venues {
-  id            Int      @id @default(autoincrement())
-  venueName     String   @map("venue_name")
-  venueAddress  String   @map("venue_address")
-  venueCity     String   @map("venue_city")
-  venueState    String   @map("venue_state")
-  venueZipCode  String   @map("venue_zip_code")
-  venuePhone    String   @map("venue_phone")
-  venueEmail    String   @map("venue_email")
-  venueGMapsUrl String   @map("venue_gmaps_url")
-  capacity      Int
-  //1 venue beberapa events
-  events        Events[]
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  @@map("venues")
-}
-
 enum SalesOrderStatus {
   WAITING_PAYMENT
   PAID
   CANCELLED
   CANCELLED_EXPIRED
-}
-
-model Sales_Orders {
-  id         String           @id @default(cuid())
-  totalPrice Int              @map("total_price")
-  qtyTickets Int              @map("qty_tickets")
-  discounts  Int
-  finalPrice Int              @map("final_price")
-  pointsUsed Int              @map("points_used")
-  status     SalesOrderStatus
-  createdAt  DateTime         @default(now()) @map("created_at")
-  updatedAt  DateTime         @updatedAt @map("updated_at")
-
-  //1 customer several sales orders
-  customerId String @map("customer_id")
-  customer   User   @relation(fields: [customerId], references: [id])
-
-  //1 sales order 1 payment
-  paymentId String   @unique @map("payment_id")
-  payment   Payments @relation(fields: [paymentId], references: [id])
-
-  //1 sales order hanya boleh 1 kupon
-  couponId Int     @unique @map("coupon_id")
-  coupon   Coupons @relation(fields: [couponId], references: [id])
-
-  //1 sales order several issued ticket
-  issuedTickets IssuedTickets[]
-
-  @@map("sales_orders")
-}
-
-model TicketTypes {
-  id         Int      @id @default(autoincrement())
-  ticketType String
-  price      Int
-  quota      Int
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  deletedAt  DateTime? @map("deleted_at")
-
-  //1 ticket type bisa issue banyak tiket
-  issuedTickets IssuedTickets[]
-
-  //1 tiket type 1 event
-  eventId String @map("event_id")
-  event   Events @relation(fields: [eventId], references: [id])
-
-  @@map("ticket_types")
-}
-
-model IssuedTickets {
-  id         String   @id @default(cuid())
-  ticketCode String   @unique @map("ticket_code")
-  isUsed     Boolean  @default(false) @map("is_used")
-  usedAt     DateTime @map("used_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  //1 issued ticket hanya ada 1 ticket type
-  ticketTypeId Int         @map("ticket_type_id")
-  ticketType   TicketTypes @relation(fields: [ticketTypeId], references: [id])
-
-  //1 tiket yang di-issue hanya ada di 1 sales order
-  salesOrderId String       @map("sales_order_id")
-  salesOrder   Sales_Orders @relation(fields: [salesOrderId], references: [id])
-
-  @@map("issued_tickets")
-}
-
-model Payments {
-  id            String   @id @default(cuid())
-  amount        Int
-  paymentMethod String   @map("payment_method")
-  paymentProof  String   @map("payment_proof")
-  paidAt        DateTime @map("paid_at")
-
-  salesOrderId Sales_Orders?
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("payments")
 }
