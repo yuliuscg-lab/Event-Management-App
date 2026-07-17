@@ -20,6 +20,7 @@ export function authenticate (req:Request, res:Response, next:NextFunction) {
     try {
         const payload = verifyAccessToken(token);
         req.userId = payload.sub as string;
+        req.userRole = payload.role;
         next();
     } catch {
         throw new AppError("Invalid token!",401)

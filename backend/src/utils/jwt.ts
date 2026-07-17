@@ -1,16 +1,19 @@
 import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "../errors/AppError";
+import { Role } from "@prisma/client";
 
 interface TokenPayload extends JwtPayload {
     sub: string;
+    role: Role;
     type: "access" | "refresh";
     jti?: string;
 }
 
-export function generateAccessToken(userId:string):string {
+export function generateAccessToken(userId:string, role: Role):string {
     const payload:TokenPayload = {
         sub: userId,
+        role,
         type: "access",
     };
 
@@ -22,9 +25,10 @@ export function generateAccessToken(userId:string):string {
     });
 }
 
-export function generateRefreshToken(userId:string, jti:string):string {
+export function generateRefreshToken(userId:string, role: Role, jti:string):string {
     const payload:TokenPayload = {
         sub: userId,
+        role,
         type: "refresh",
         jti,
     };

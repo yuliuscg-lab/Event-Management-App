@@ -1,8 +1,10 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { authService } from "../services/auth.service";
 import { success } from "../utils/response";
 import { userService } from "../services/user.service";
 import { env } from "../config/env";
+import { refreshCookieOptions } from "../utils/cookie";
+import { AppError } from "../errors/AppError";
 
 export async function login(
     req:Request,
@@ -12,13 +14,7 @@ export async function login(
     res.cookie(
         "refresh_token",
         result.refreshToken,
-        {
-            httpOnly:true,
-            secure: env.NODE_ENV === "production",
-            sameSite: "strict",
-            path: "api/auth",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        }
+        refreshCookieOptions
     )
     return success(
         res,
@@ -31,8 +27,26 @@ export async function login(
     );
 }
 
+export async function refresh(req:Request, res:Response) {
+    const result = await authService.refresh(req.cookies.refresh_token);
+    res.cookie(
+        "refresh_token",
+        result.refreshToken,
+        refreshCookieOptions
+    );
+
+    return success(
+        res,
+        200,
+        "Token Refreshed",
+        {
+            accessToken: result.accessToken,
+        }
+    );
+}
+
 export async function me(req:Request, res:Response) {
-    const user = await userService.findById(req.userId);
+    const user = await userService.findById(req.userId!);
 
     return success(
         res,
@@ -41,3 +55,66 @@ export async function me(req:Request, res:Response) {
         user
     );
 }
+
+export async function logout(req:Request, res:Response, next:NextFunction) {
+    try {
+        const refreshToken = req.cookies.refresh_token;
+        if(!refreshToken){
+            throw new AppError("Refresh token is required",401);
+        }
+
+        await authService.logout(refreshToken);
+
+        res.clearCookie("refresh_token", refreshCookieOptions);
+        return success(
+            res,
+            200,
+            "Logout successful"
+        );
+    } catch (err) {
+        next(err);
+    }
+};
+
+export async function logoutAll(req:Request, res:Response, next:NextFunction) {
+    try {
+        const refreshToken = req.cookies.refresh_token;
+        if(!refreshToken){
+            throw new AppError("Refresh token is required",401);
+        }
+
+        await authService.logoutAll(refreshToken);
+
+        res.clearCookie("refresh_token", refreshCookieOptions);
+        return success(
+            res,
+            200,
+            "Logout from all devices successful",
+        )
+    } catch (err) {
+        next(err);
+    }
+};
+
+export async function changePassword(req:Request, res:Response, next:NextFunction) {
+    try {
+        
+        const { currentPassword, newPassword } = req.body;
+
+        await authService.changePassword(
+            req.userId!,
+            currentPassword,
+            newPassword
+        );
+
+        res.clearCookie("refresh_token", refreshCookieOptions);
+
+        return success(
+            res,
+            200,
+            "Password changed successfully"
+        );
+    } catch (err) {
+        next(err);
+    }
+};
