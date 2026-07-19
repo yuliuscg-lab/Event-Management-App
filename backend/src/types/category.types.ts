@@ -1,11 +1,11 @@
 import { Category } from "@prisma/client";
 
 export interface CreateCategoryRequest {
-    name: string;
+    category: string;
 }
 
 export interface UpdateCategoryRequest {
-    name?: string;
+    category?: string;
 }
 
 export type CategoryResponse = Category;

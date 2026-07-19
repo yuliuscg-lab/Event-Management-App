@@ -1,17 +1,24 @@
 import {prisma} from "../config/prisma";
 import { Prisma } from "@prisma/client";
+
 export class CategoryRepository {
     async findAll() {
         return prisma.category.findMany({
             orderBy: {
                 category: "asc",
             },
+            where: {
+                deletedAt: null,
+            }
         });
     }
 
     async findById(id:number) {
         return prisma.category.findUnique({
-            where: { id }
+            where: { 
+                id,
+                deletedAt: null, 
+            }
         });
     }
 
@@ -22,6 +29,7 @@ export class CategoryRepository {
                     equals:category,
                     mode: "insensitive",
                 },
+                deletedAt: null,
             },
         });
     }
@@ -41,10 +49,13 @@ export class CategoryRepository {
         });
     }
 
-    async delete(id:number) {
-        return prisma.category.delete({
+    async softDelete(id:number) {
+        return prisma.category.update({
             where: {
                 id,
+            },
+            data: {
+                deletedAt: new Date(),
             }
         });
     }

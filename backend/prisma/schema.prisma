@@ -80,6 +80,7 @@ model Category {
   category  String   @unique
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
   events    Event[]
 
   @@map("categories")
@@ -169,7 +170,7 @@ model EventPromo {
 
 model Venue {
   id            Int       @id @default(autoincrement())
-  venueName     String    @map("venue_name")
+  venueName     String    @unique@map("venue_name")
   venueAddress  String    @map("venue_address")
   venueCity     String    @map("venue_city")
   venueState    String    @map("venue_state")
