@@ -56,65 +56,56 @@ export async function me(req:Request, res:Response) {
     );
 }
 
-export async function logout(req:Request, res:Response, next:NextFunction) {
-    try {
-        const refreshToken = req.cookies.refresh_token;
-        if(!refreshToken){
-            throw new AppError("Refresh token is required",401);
-        }
+export async function logout(req: Request, res: Response) {
+    const refreshToken = req.cookies.refresh_token;
 
-        await authService.logout(refreshToken);
-
-        res.clearCookie("refresh_token", refreshCookieOptions);
-        return success(
-            res,
-            200,
-            "Logout successful"
-        );
-    } catch (err) {
-        next(err);
+    if (!refreshToken) {
+        throw new AppError("Refresh token is required", 401);
     }
-};
 
-export async function logoutAll(req:Request, res:Response, next:NextFunction) {
-    try {
-        const refreshToken = req.cookies.refresh_token;
-        if(!refreshToken){
-            throw new AppError("Refresh token is required",401);
-        }
+    await authService.logout(refreshToken);
 
-        await authService.logoutAll(refreshToken);
+    res.clearCookie("refresh_token", refreshCookieOptions);
 
-        res.clearCookie("refresh_token", refreshCookieOptions);
-        return success(
-            res,
-            200,
-            "Logout from all devices successful",
-        )
-    } catch (err) {
-        next(err);
+    return success(
+        res,
+        200,
+        "Logout successful"
+    );
+}
+
+export async function logoutAll(req: Request, res: Response) {
+    const refreshToken = req.cookies.refresh_token;
+
+    if (!refreshToken) {
+        throw new AppError("Refresh token is required", 401);
     }
-};
 
-export async function changePassword(req:Request, res:Response, next:NextFunction) {
-    try {
-        
-        const { currentPassword, newPassword } = req.body;
+    await authService.logoutAll(refreshToken);
 
-        await authService.changePassword(
-            req.userId!,
-            currentPassword,
-            newPassword
-        );
+    res.clearCookie("refresh_token", refreshCookieOptions);
 
-        res.clearCookie("refresh_token", refreshCookieOptions);
+    return success(
+        res,
+        200,
+        "Logout from all devices successful"
+    );
+}
 
-        return success(
-            res,
-            200,
-            "Password changed successfully"
-        );
-    } catch (err) {
-        next(err);
-    }
-};
+export async function changePassword(req: Request, res: Response) {
+    const { currentPassword, newPassword } = req.body;
+
+    await authService.changePassword(
+        req.userId!,
+        currentPassword,
+        newPassword
+    );
+
+    res.clearCookie("refresh_token", refreshCookieOptions);
+
+    return success(
+        res,
+        200,
+        "Password changed successfully"
+    );
+}

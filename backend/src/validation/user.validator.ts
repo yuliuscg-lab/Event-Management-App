@@ -1,3 +1,4 @@
+import { Role } from "@prisma/client";
 import { z } from "zod";
 
 export const createUserSchema = z.object({
@@ -7,7 +8,7 @@ export const createUserSchema = z.object({
         .regex(/^[a-zA-Z0-9 ]+$/, "Nama hanya boleh berisi huruf, angka, dan spasi!"),
     email: z.string().trim().email("Email tidak valid!"),
     password: z.string().min(8, "Password minimal 8 karakter!"),
-    isOrganizer: z.boolean().default(false),
+    role: z.nativeEnum(Role),
     phone: z.string().trim().min(8, "Nomor telepon wajib diisi"),
     refCodeInput: z.string().optional()
 });

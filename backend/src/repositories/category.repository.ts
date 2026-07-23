@@ -23,16 +23,15 @@ export class CategoryRepository {
     }
 
     async findByCategory(category: string) {
-        return prisma.category.findFirst({
-            where: {
-                category: {
-                    equals:category,
-                    mode: "insensitive",
-                },
-                deletedAt: null,
+    return prisma.category.findFirst({
+        where: {
+            category: {
+                equals: category,
+                mode: "insensitive",
             },
-        });
-    }
+        },
+    });
+}
 
     async create(data: Prisma.CategoryCreateInput) {
         return prisma.category.create({

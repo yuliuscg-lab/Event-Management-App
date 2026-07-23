@@ -1,10 +1,11 @@
+import { Role } from "@prisma/client";
 import { ParamsDictionary } from "express-serve-static-core";
 
 export interface CreateUser {
     email: string;
     password: string;
     balancePoints: number;
-    isOrganizer: boolean;
+    role: Role;
     phone: string;
     name: string;
     refCode: string;

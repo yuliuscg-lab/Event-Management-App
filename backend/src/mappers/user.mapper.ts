@@ -9,7 +9,7 @@ export function toUserResponse(user:User) {
         refCode: user.refCode,
         refCodeInput: user.refCodeInput,
         balancePoints: user.balancePoints,
-        isOrganizer: user.isOrganizer,
+        role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
     };
