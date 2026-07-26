@@ -7,12 +7,8 @@ import { verifyAccessToken } from "../utils/jwt";
 export function authenticate (req:Request, res:Response, next:NextFunction) {
     const authorization = req.headers.authorization;
 
-    if (!authorization) {
-        throw new AppError("Unauthorized",401);
-    }
-
-    if (!authorization.startsWith("Bearer ")) {
-        throw new AppError("Unauthorized", 401);
+    if (!authorization || !authorization.startsWith("Bearer ")) {
+        return next(new AppError("Unauthorized", 401));
     }
 
     const token = authorization.split(" ")[1];

@@ -7,3 +7,7 @@ export const idParamSchema = z.object ({
 export const cuidParamSchema = z.object ({
     cuid: z.string().cuid(),
 })
+
+export const ticketCodeParamSchema = z.object({
+    code: z.string().min(1),
+});

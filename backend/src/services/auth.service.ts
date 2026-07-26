@@ -82,7 +82,7 @@ export class AuthService {
     async login(data:LoginUser) {
         const user = await userRepository.findByEmail(prisma,data.email);
         
-        if(!user) {
+        if(!user || user.deletedAt) {
             throw new AppError("Email atau password salah!", 401);
         };
 
@@ -137,14 +137,22 @@ export class AuthService {
             throw new AppError("Unauthorized",401);
         }
 
-        const newJti = crypto.randomUUID();
         const userId = payload.sub as string;
+        const user = await userRepository.findById(prisma, userId);
+
+        if (!user || user.deletedAt) {
+            await refreshTokenRepository.revokeAll(userId);
+            throw new AppError("Unauthorized", 401);
+        }
+
+        const newJti = crypto.randomUUID();
+        
         const accessToken = generateAccessToken(
-            userId,
-            payload.role
+            user.id,
+            user.role
         );
 
-        const newRefreshToken = generateRefreshToken(userId,payload.role,newJti);
+        const newRefreshToken = generateRefreshToken(user.id,user.role,newJti);
         const hashedRefreshToken = await hashPassword(newRefreshToken);
         const expiresAt = new Date(
             payload.exp! * 1000

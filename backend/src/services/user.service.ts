@@ -7,6 +7,7 @@ import { generateReferral } from "../utils/generateReferral";
 import { hashPassword } from "../utils/password";
 import { prisma } from "../config/prisma";
 import { UpdateCategoryRequest } from "../types/category.types";
+import { refreshTokenRepository } from "../repositories/refresh-token.repository";
 
 export class UserService {
   async findAll() {
@@ -44,9 +45,15 @@ export class UserService {
   }
 
   async delete(id: string) {
-    return userRepository.delete(prisma,id);
-  }
+    const existingUser = await userRepository.findById(prisma, id);
 
+    if (!existingUser || existingUser.deletedAt) {
+      throw new AppError("User tidak ditemukan", 404);
+    }
+
+    await userRepository.update(prisma, id, { deletedAt: new Date() });
+    await refreshTokenRepository.revokeAll(id);
+  }
 }
 
 export const userService = new UserService();

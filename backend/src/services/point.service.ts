@@ -5,6 +5,8 @@ import { pointsBucketRepository } from "../repositories/points-bucket.repository
 import { userRepository } from "../repositories/user.repository";
 import { pointsLedgerRepository } from "../repositories/points-ledger-repository";
 import { pointsDeductionDetailRepository } from "../repositories/points-deduct-details.repository";
+import { DB } from "../types/database.types";
+import { pointsReservationRepository } from "../repositories/points-reservation.repository";
 
 export interface BucketUsage {
     bucketId:number;
@@ -18,6 +20,19 @@ export interface PointValidationResult {
 }
 
 export class PointService {
+
+    async getMyPoints(customerId:string) {
+        const buckets = await pointsBucketRepository.findAvailableBuckets(prisma, customerId);
+        const ledgers = await pointsLedgerRepository.findByCustomer(prisma, customerId);
+        const user = await userRepository.findById(prisma, customerId);
+
+        return {
+            balance: user?.balancePoints ?? 0,
+            buckets,
+            history: ledgers,
+        };
+    }
+
     async validatePointUsage(
         customerId:string,
         subtotalAfterCoupon:number,
@@ -65,18 +80,53 @@ export class PointService {
         };
     }
 
+    async reservePoint(
+        tx: Prisma.TransactionClient, 
+        customerId:string,
+        salesOrderId:string,
+        validation:PointValidationResult,
+    ): Promise<void> {
+        if(validation.pointUsed <= 0) return;
+
+        for (const item of validation.buckets) {
+            const reserved = await pointsBucketRepository.reserveAmount(
+                tx,
+                item.bucketId,
+                item.amount,
+            );
+
+            if (reserved === 0) {
+                throw new AppError("Saldo point telah berubah, silahkan ulangi checkout", 409);
+            }
+
+            await pointsReservationRepository.create(tx, {
+                amount: item.amount,
+                bucket: {
+                    connect: { id: item.bucketId},
+                },
+                salesOrder: {
+                    connect: { id: salesOrderId},
+                },
+            });
+        }
+        await userRepository.decrementBalancePoints(tx, customerId, validation.pointUsed);
+    }
+
     async consumePoint(
         tx: Prisma.TransactionClient,
         customerId: string,
         salesOrderId: string,
-        validation: PointValidationResult,
     ): Promise<void> {
-        if (validation.pointUsed <= 0) {
+        const reservations = await pointsReservationRepository.findBySalesOrderId(tx, salesOrderId);
+
+        if(reservations.length === 0) {
             return;
         }
 
+        const totalUsed = reservations.reduce((sum, r) => sum + r.amount,0);
+
         const ledger = await pointsLedgerRepository.create(tx, {
-            amount: validation.pointUsed,
+            amount: totalUsed,
             transactionType: TransactionType.REDEEM,
             source: EarnSource.SALES_ORDER,
             sourceId: salesOrderId,
@@ -87,25 +137,12 @@ export class PointService {
             },
         });
 
-        for (const item of validation.buckets) {
-            const bucket = await pointsBucketRepository.findById(tx, item.bucketId);
-
-            if(!bucket) {
-                throw new AppError("Bucket tidak ditemukan!", 404);
-            }
-
-            if (bucket.remaining < item.amount) {
-                throw new AppError("Saldo point bucket tidak mencukupi!", 400);
-            }
-
-            await pointsBucketRepository.decrementRemaining(tx, item.bucketId, item.amount);
+        for (const item of reservations) {
 
             await pointsDeductionDetailRepository.create(tx, {
                 amountRedeemed: item.amount,
                 bucket: {
-                    connect: {
-                        id: bucket.id,
-                    },
+                    connect: {id: item.bucketId},
                 },
                 ledger: {
                     connect: {
@@ -115,7 +152,29 @@ export class PointService {
             });
         }
 
-        await userRepository.decrementBalancePoints(tx, customerId, validation.pointUsed);
+        await pointsReservationRepository.deleteBySalesOrderId(tx, salesOrderId);
+    }
+
+    async releasePoint(
+        tx: Prisma.TransactionClient,
+        customerId:string,
+        salesOrderId:string,
+    ):Promise<void> {
+        const reservations = await pointsReservationRepository.findBySalesOrderId(tx, salesOrderId);
+
+        if(reservations.length === 0) {
+            return;
+        }
+
+        let totalReleased:number = 0;
+
+        for(const item of reservations) {
+            await pointsBucketRepository.incrementRemaining(tx, item.bucketId,item.amount);
+            totalReleased += item.amount;
+        }
+
+        await userRepository.incrementBalancePoints(tx, customerId, totalReleased);
+        await pointsReservationRepository.deleteBySalesOrderId(tx, salesOrderId);
     }
 }
 

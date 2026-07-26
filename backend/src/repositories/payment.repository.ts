@@ -39,6 +39,20 @@ export class PaymentRepository {
         });
     }
 
+    async findExpiredWaitingUpload(db:DB) {
+        return db.payment.findMany({
+            where: {
+                status: PaymentStatus.WAITING_UPLOAD,
+                expiredAt: {
+                    lt: new Date(),
+                },
+            },
+            include: {
+                salesOrder: true,
+            },
+        });
+    }
+
     async delete(db:DB, id:string) {
         return db.payment.delete({
             where: { id },

@@ -117,6 +117,7 @@ model PointsBucket {
   customerId       String                  @map("customer_id")
   customer         User                    @relation(fields: [customerId], references: [id])
   deductionDetails PointsDeductionDetail[]
+  reservations     PointsReservation[]
 
   @@index([customerId])
   @@index([expiredAt])
@@ -136,6 +137,22 @@ model PointsDeductionDetail {
   @@map("points_deduction_details")
 }
 
+model PointsReservation {
+  id              Int          @id @default(autoincrement())
+  bucketId        Int          @map("bucket_id")
+  bucket          PointsBucket @relation(fields: [bucketId], references: [id])
+  salesOrderId    String       @map("sales_order_id")
+  salesOrder      SalesOrder   @relation(fields: [salesOrderId], references: [id])
+  amount          Int
+  
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  
+  @@index([salesOrderId])
+  @@index([bucketId])
+  @@map("points_reservations")
+}
+
 model Coupon {
   id              Int          @id @default(autoincrement())
   customerId      String       @map("customer_id")
@@ -143,6 +160,8 @@ model Coupon {
   couponCode      String       @unique @map("coupon_code")
   discountPercent Int          @default(10) @map("discount_percent")
   isUsed          Boolean      @default(false) @map("is_used")
+  usedInOrderId   String?      @map("used_in_order_id")
+  usedAt          DateTime?    @map("used_at")
   expiredAt       DateTime     @map("expired_at")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
@@ -194,6 +213,7 @@ model SalesOrder {
   finalPrice    Int              @map("final_price")
   status        SalesOrderStatus @default(WAITING_PAYMENT)
   issuedTickets IssuedTicket[]
+  pointsReservations PointsReservation[]
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
   deletedAt     DateTime?        @map("deleted_at")
@@ -254,6 +274,7 @@ model Payment {
   paidAt        DateTime?     @map("paid_at")
   expiredAt     DateTime      @map("expired_at")
   status        PaymentStatus @default(WAITING_UPLOAD)
+  rejectReason  String?       @map("reject_reason")
   verifiedById  String?       @map("verified_by_id")
   verifiedBy    User?         @relation("PaymentVerifier", fields: [verifiedById], references: [id])
   verifiedAt    DateTime?     @map("verified_at")
@@ -311,9 +332,10 @@ enum SalesOrderStatus {
 
 enum PaymentStatus {
   WAITING_UPLOAD
-  UPLOADED
+  WAITING_VERIFICATION
   VERIFIED
   REJECTED
+  EXPIRED
 }
 
 enum PaymentMethod {

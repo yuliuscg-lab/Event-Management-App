@@ -5,12 +5,26 @@ import { userService } from "../services/user.service";
 import { env } from "../config/env";
 import { refreshCookieOptions } from "../utils/cookie";
 import { AppError } from "../errors/AppError";
+import { loginSchema, registerSchema } from "../validation/auth.validator";
+
+
+export async function register(req:Request, res:Response) {
+    const body = registerSchema.parse(req.body);
+    const user = await authService.register(body);
+    return success(
+        res,
+        201,
+        "Register berhasil!",
+        user
+    );
+}
 
 export async function login(
     req:Request,
     res:Response
 ) {
-    const result = await authService.login(req.body);
+    const body = loginSchema.parse(req.body);
+    const result = await authService.login(body);
     res.cookie(
         "refresh_token",
         result.refreshToken,

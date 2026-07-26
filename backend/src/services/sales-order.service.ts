@@ -1,3 +1,4 @@
+import { Role, SalesOrderStatus } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { AppError } from "../errors/AppError";
 import { eventRepository } from "../repositories/event.repository";
@@ -9,14 +10,37 @@ import { generateInvoiceNumber } from "../utils/generateInvoice";
 import { generatePaymentExpiredAt } from "../utils/paymentExpired.utils";
 import { couponService } from "./coupon.service";
 import { pointService, PointValidationResult } from "./point.service";
+import { DB } from "../types/database.types";
 
 export class SalesOrderService {
     
+    async findByCustomer(customerId:string) {
+        return salesOrderRepository.findByCustomer(prisma, customerId);
+    }
+
+    async getById(userId: string, role:Role, id:string) {
+        const salesOrder = await salesOrderRepository.findById(prisma, id);
+
+        if (!salesOrder) {
+            throw new AppError("Order tidak ditemukan!", 404);
+        }
+
+        if (role !== Role.ADMIN && salesOrder.customerId !== userId) {
+            throw new AppError("Anda tidak diizinkan melihat order ini", 403);
+        }
+
+        return salesOrder;
+    }
+
     private async validateCheckout(
         eventId:string,
         ticketTypeId: number,
         qtyTickets: number,
     ) {
+        if (qtyTickets <= 0) {
+            throw new AppError("Jumlah tiket harus lebih dari 0!", 400);
+        }
+
         const event = await eventRepository.findById(eventId);
 
         if(!event) {
@@ -121,10 +145,6 @@ export class SalesOrderService {
                 throw new AppError("Kuota tiket telah berubah. Silakan ulangi checkout!", 409);
             }
 
-            if (payload.qtyTickets <= 0) {
-                throw new AppError("Jumlah tiket harus lebih dari 0!", 400);
-            }
-
             const invoiceNumber = generateInvoiceNumber();
 
             const salesOrder = await salesOrderRepository.create(tx, {
@@ -158,8 +178,16 @@ export class SalesOrderService {
                 totalDiscount: calculation.couponDiscount,
                 pointsUsed: calculation.pointUsed,
                 finalPrice: calculation.finalPrice,
-                
+                status:SalesOrderStatus.WAITING_PAYMENT,
             });
+
+            if(calculation.couponId) {
+                await couponService.reserveCoupon(tx, calculation.couponId, salesOrder.id);
+            }
+
+            if(calculation.pointUsed > 0) {
+                await pointService.reservePoint(tx, customerId, salesOrder.id, calculation.pointValidation);
+            }
 
             const payment = await paymentRepository.create(tx, {
                 salesOrder: {
@@ -183,8 +211,36 @@ export class SalesOrderService {
                 expiredAt: payment.expiredAt,
                 status: salesOrder.status,
             }
+
         });
     }
+
+    async releaseOrder(
+        tx:DB, salesOrder : {
+            id: string;
+            customerId:string;
+            ticketTypeId:number;
+            qtyTickets:number;
+            couponId:number|null;
+            pointsUsed:number;
+        },
+        status: typeof SalesOrderStatus.CANCELLED | typeof SalesOrderStatus.CANCELLED_EXPIRED = SalesOrderStatus.CANCELLED
+    ) {
+        await salesOrderRepository.update(tx, salesOrder.id, {status});
+
+        await ticketTypeRepository.releaseTicket(tx, salesOrder.ticketTypeId, salesOrder.qtyTickets);
+
+        if(salesOrder.couponId) {
+            await couponService.releaseCoupon(tx, salesOrder.couponId, salesOrder.id);
+        }
+
+        if (salesOrder.pointsUsed > 0) {
+            await pointService.releasePoint(tx, salesOrder.customerId, salesOrder.id);
+        }
+    }
+
     
 
 }
+
+export const salesOrderService = new SalesOrderService();

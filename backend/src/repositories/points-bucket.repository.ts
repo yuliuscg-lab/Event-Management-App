@@ -45,16 +45,30 @@ export class PointsBucketRepository {
         });
     }
 
-    async decrementRemaining(
-        db:DB, 
-        id:number, 
-        amount:number
-    ) {
-        return db.pointsBucket.update({
-            where: {id},
+    async reserveAmount(db:DB, id:number, amount:number) {
+        const result = await db.pointsBucket.updateMany({
+            where: {
+                id,
+                remaining: {
+                    gte: amount,
+                },
+            },
             data: {
                 remaining: {
-                    decrement: amount,
+                    decrement: amount
+                },
+            },
+        });
+
+        return result.count;
+    }
+
+    async incrementRemaining(db: DB, id:number, amount: number) {
+        return db.pointsBucket.update({
+            where: { id },
+            data: {
+                remaining: {
+                    increment: amount,
                 },
             },
         });
