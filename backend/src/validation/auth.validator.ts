@@ -8,8 +8,6 @@ export const registerSchema = z.object({
     password: z.string().min(8, "Password minimal 8 karakter!"),
     role: z.nativeEnum(Role),
     refCodeInput: z.string().optional(),
-    balancePoints: z.number(),
-    refCode: z.string().min(8)
 });
 
 export const loginSchema = z.object({

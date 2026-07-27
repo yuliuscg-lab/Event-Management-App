@@ -65,7 +65,7 @@ export class SalesOrderService {
             throw new AppError("Ticket Type sudah tidak tersedia!", 400);
         }
 
-        const available = ticketType.quota - ticketType.sold;
+        const available = ticketType.quota - (ticketType.sold ?? 0);
 
         if (available < qtyTickets) {
             throw new AppError("Kuota tidak mencukupi!", 400);
@@ -137,7 +137,7 @@ export class SalesOrderService {
             const result = await ticketTypeRepository.reserveTicket(
                 tx, 
                 ticketType.id, 
-                ticketType.sold, 
+                ticketType.sold ?? 0, 
                 payload.qtyTickets
             );
 
@@ -226,7 +226,7 @@ export class SalesOrderService {
         },
         status: typeof SalesOrderStatus.CANCELLED | typeof SalesOrderStatus.CANCELLED_EXPIRED = SalesOrderStatus.CANCELLED
     ) {
-        await salesOrderRepository.update(tx, salesOrder.id, {status});
+        const updated = await salesOrderRepository.update(tx, salesOrder.id, {status});
 
         await ticketTypeRepository.releaseTicket(tx, salesOrder.ticketTypeId, salesOrder.qtyTickets);
 
@@ -237,6 +237,7 @@ export class SalesOrderService {
         if (salesOrder.pointsUsed > 0) {
             await pointService.releasePoint(tx, salesOrder.customerId, salesOrder.id);
         }
+        return updated;
     }
 
     

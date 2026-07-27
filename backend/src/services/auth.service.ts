@@ -5,7 +5,7 @@ import { toUserResponse } from "../mappers/user.mapper";
 import { refreshTokenRepository } from "../repositories/refresh-token.repository";
 import { userRepository } from "../repositories/user.repository";
 import { LoginUser } from "../types/auth.types";
-import { CreateUser } from "../types/user.types";
+import { CreateUser, RegisterInput } from "../types/user.types";
 import { generateReferral } from "../utils/generateReferral";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt";
 import { comparePassword, hashPassword } from "../utils/password";
@@ -25,7 +25,7 @@ export class AuthService {
         }
     }
 
-    async register(data:CreateUser) {
+    async register(data:RegisterInput) {
         const existingEmail = await userRepository.findByEmail(prisma, data.email);
         const existingPhone = await userRepository.findByPhone(prisma, data.phone);
         
@@ -63,6 +63,7 @@ export class AuthService {
                 refCode,
                 role:data.role,
                 refCodeInput: data.refCodeInput,
+                balancePoints:0
             });
 
             if(referralOwnerId) {

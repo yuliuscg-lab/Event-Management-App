@@ -10,7 +10,7 @@ const router = Router();
 
 router.use(authenticate);
 router.post("/upload-proof", validate(uploadPaymentProofSchema), paymentController.uploadProof.bind(paymentController));
-router.post("/:id/verify", authorize(Role.ADMIN), paymentController.verify.bind(paymentController));
-router.post("/:id/reject", authorize(Role.ADMIN), validate(rejectPaymentSchema), paymentController.reject.bind(paymentController));
+router.post("/:cuid/verify", authorize(Role.ADMIN), paymentController.verify.bind(paymentController));
+router.post("/:cuid/reject", authorize(Role.ADMIN), validate(rejectPaymentSchema), paymentController.reject.bind(paymentController));
 
 export default router;

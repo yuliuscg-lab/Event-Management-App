@@ -138,9 +138,9 @@ class PaymentService {
                 throw new AppError("Sales Order tidak ditemukan",404);
             }
 
-            await salesOrderService.releaseOrder(tx, salesOrder);
+            const updatedSalesOrder = await salesOrderService.releaseOrder(tx, salesOrder);
 
-            return salesOrder;
+            return updatedSalesOrder;
         });
     }
 

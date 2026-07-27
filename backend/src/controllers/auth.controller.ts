@@ -6,10 +6,10 @@ import { env } from "../config/env";
 import { refreshCookieOptions } from "../utils/cookie";
 import { AppError } from "../errors/AppError";
 import { loginSchema, registerSchema } from "../validation/auth.validator";
-
+import { RegisterInput } from "../types/user.types";
 
 export async function register(req:Request, res:Response) {
-    const body = registerSchema.parse(req.body);
+    const body:RegisterInput = registerSchema.parse(req.body);
     const user = await authService.register(body);
     return success(
         res,
@@ -42,7 +42,12 @@ export async function login(
 }
 
 export async function refresh(req:Request, res:Response) {
-    const result = await authService.refresh(req.cookies.refresh_token);
+    const refreshToken = req.cookies.refresh_token;
+    if (!refreshToken) {
+        throw new AppError("Dibutuhkan refresh Token untuk refresh!", 401);
+    }
+
+    const result = await authService.refresh(refreshToken);
     res.cookie(
         "refresh_token",
         result.refreshToken,

@@ -12,6 +12,8 @@ export interface CreateUser {
     refCodeInput?: string;
 }
 
+export type RegisterInput = Pick<CreateUser, "email" | "password" | "role" | "phone" | "name" | "refCodeInput">;
+
 export interface UserParams extends ParamsDictionary {
     id:string
 }
