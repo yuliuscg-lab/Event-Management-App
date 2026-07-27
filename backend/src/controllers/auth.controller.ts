@@ -1,0 +1,130 @@
+import { NextFunction, Request, Response } from "express";
+import { authService } from "../services/auth.service";
+import { success } from "../utils/response";
+import { userService } from "../services/user.service";
+import { env } from "../config/env";
+import { refreshCookieOptions } from "../utils/cookie";
+import { AppError } from "../errors/AppError";
+import { loginSchema, registerSchema } from "../validation/auth.validator";
+import { RegisterInput } from "../types/user.types";
+
+export async function register(req:Request, res:Response) {
+    const body:RegisterInput = registerSchema.parse(req.body);
+    const user = await authService.register(body);
+    return success(
+        res,
+        201,
+        "Register berhasil!",
+        user
+    );
+}
+
+export async function login(
+    req:Request,
+    res:Response
+) {
+    const body = loginSchema.parse(req.body);
+    const result = await authService.login(body);
+    res.cookie(
+        "refresh_token",
+        result.refreshToken,
+        refreshCookieOptions
+    )
+    return success(
+        res,
+        200,
+        "Login berhasil!",
+        {
+            accessToken: result.accessToken,
+            user: result.user,
+        }
+    );
+}
+
+export async function refresh(req:Request, res:Response) {
+    const refreshToken = req.cookies.refresh_token;
+    if (!refreshToken) {
+        throw new AppError("Dibutuhkan refresh Token untuk refresh!", 401);
+    }
+
+    const result = await authService.refresh(refreshToken);
+    res.cookie(
+        "refresh_token",
+        result.refreshToken,
+        refreshCookieOptions
+    );
+
+    return success(
+        res,
+        200,
+        "Token Refreshed",
+        {
+            accessToken: result.accessToken,
+        }
+    );
+}
+
+export async function me(req:Request, res:Response) {
+    const user = await userService.findById(req.userId!);
+
+    return success(
+        res,
+        200,
+        "User retrieved successfully",
+        user
+    );
+}
+
+export async function logout(req: Request, res: Response) {
+    const refreshToken = req.cookies.refresh_token;
+
+    if (!refreshToken) {
+        throw new AppError("Refresh token is required", 401);
+    }
+
+    await authService.logout(refreshToken);
+
+    res.clearCookie("refresh_token", refreshCookieOptions);
+
+    return success(
+        res,
+        200,
+        "Logout successful"
+    );
+}
+
+export async function logoutAll(req: Request, res: Response) {
+    const refreshToken = req.cookies.refresh_token;
+
+    if (!refreshToken) {
+        throw new AppError("Refresh token is required", 401);
+    }
+
+    await authService.logoutAll(refreshToken);
+
+    res.clearCookie("refresh_token", refreshCookieOptions);
+
+    return success(
+        res,
+        200,
+        "Logout from all devices successful"
+    );
+}
+
+export async function changePassword(req: Request, res: Response) {
+    const { currentPassword, newPassword } = req.body;
+
+    await authService.changePassword(
+        req.userId!,
+        currentPassword,
+        newPassword
+    );
+
+    res.clearCookie("refresh_token", refreshCookieOptions);
+
+    return success(
+        res,
+        200,
+        "Password changed successfully"
+    );
+}

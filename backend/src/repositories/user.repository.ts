@@ -1,38 +1,75 @@
+import { DB } from "../types/database.types";
 import { Prisma } from "@prisma/client";
-import { prisma } from "../config/prisma";
 
 export class UserRepository {
-  async findAll() {
-    return prisma.user.findMany();
+
+  async findAll(db:DB) {
+    return db.user.findMany()
   }
 
-  async findById(id:string) {
-    return prisma.user.findUnique({
+  async findById(db:DB,id:string) {
+    return db.user.findUnique({
       where: {id},
     });
   }
 
-  async findByEmail(email:string) {
-    return prisma.user.findUnique({
+  async findByEmail(db:DB,email:string) {
+    return db.user.findUnique({
       where: { email },
     });
   }
 
-  async create(data: Prisma.UserCreateInput) {
-    return prisma.user.create({
+  async findByPhone(db:DB,phone:string) {
+    return db.user.findUnique({
+      where: {phone},
+    });
+  }
+
+  async create(db: DB, data: Prisma.UserCreateInput) {
+    return db.user.create({
       data,
     });
   }
 
-  async update(id: string, data: Prisma.UserUpdateInput) {
-    return prisma.user.update({
+  async update(db:DB,id: string, data: Prisma.UserUpdateInput) {
+    return db.user.update({
       where: { id },
       data,
     });
   }
 
-  async delete(id: string) {
-    return prisma.user.delete({
+  async incrementBalancePoints(db: DB, id:string, amount:number) {
+    return db.user.update({
+      where: {id},
+      data: {
+        balancePoints: {
+          increment: amount,
+        },
+      },
+    });
+  }
+
+  async decrementBalancePoints(db: DB, id:string, amount:number) {
+    return db.user.update({
+      where: {id},
+      data: {
+        balancePoints: {
+          decrement: amount,
+        },
+      },
+    });
+  }
+
+  async findByRefCode(db:DB, refCode:string) {
+    return db.user.findUnique({
+      where: {
+        refCode,
+      },
+    });
+  }
+
+  async delete(db:DB,id: string) {
+    return db.user.delete({
       where: { id },
     });
   }
