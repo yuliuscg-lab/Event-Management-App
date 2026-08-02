@@ -5,7 +5,7 @@ import { eventRepository } from "../repositories/event.repository";
 import { venueRepository } from "../repositories/venue.repository";
 import { CreateEventRequest, UpdateEventRequest } from "../types/event.types";
 
-class EventService {
+export class EventService {
     async getAll(userId:string, role:Role) {
         
         if (role===Role.ADMIN) {

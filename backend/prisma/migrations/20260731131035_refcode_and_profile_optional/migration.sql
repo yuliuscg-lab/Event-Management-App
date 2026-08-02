@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "profiles" ALTER COLUMN "dob" DROP NOT NULL,
+ALTER COLUMN "nik" DROP NOT NULL,
+ALTER COLUMN "gender" DROP NOT NULL,
+ALTER COLUMN "avatar_url" DROP NOT NULL;
+
+-- AlterTable
+ALTER TABLE "users" ALTER COLUMN "ref_code" DROP NOT NULL;

@@ -51,7 +51,12 @@ export class AuthService {
             referralOwnerId = referralOwner.id;
         }
 
-        const refCode:string = await this.generateRefCode(data.name);
+        let refCode:string | null = null;
+
+        if (data.role==="CUSTOMER") {
+            refCode = await this.generateRefCode(data.name);
+        }
+
         const hashedPassword = await hashPassword(data.password);
 
         const user = await prisma.$transaction(async (tx) => {
@@ -60,7 +65,7 @@ export class AuthService {
                 email:data.email,
                 phone:data.phone,
                 password:hashedPassword,
-                refCode,
+                refCode:refCode || null,
                 role:data.role,
                 refCodeInput: data.refCodeInput,
                 balancePoints:0

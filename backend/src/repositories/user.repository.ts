@@ -10,18 +10,21 @@ export class UserRepository {
   async findById(db:DB,id:string) {
     return db.user.findUnique({
       where: {id},
+      include:{ profile:true }
     });
   }
 
   async findByEmail(db:DB,email:string) {
     return db.user.findUnique({
       where: { email },
+      include: { profile:true }
     });
   }
 
   async findByPhone(db:DB,phone:string) {
     return db.user.findUnique({
       where: {phone},
+      include: { profile:true }
     });
   }
 

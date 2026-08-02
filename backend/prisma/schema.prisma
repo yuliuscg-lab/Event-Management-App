@@ -13,7 +13,7 @@ model User {
   phone            String         @unique
   name             String
   role             Role           @default(CUSTOMER)
-  refCode          String         @unique @map("ref_code")
+  refCode          String?        @unique @map("ref_code")
   refCodeInput     String?        @map("ref_code_input")
   balancePoints    Int            @default(0) @map("balance_points")
   refById          String?        @map("ref_by")
@@ -36,10 +36,10 @@ model User {
 
 model Profile {
   id        String    @id @default(cuid())
-  dob       DateTime
-  nik       String    @unique
-  gender    String
-  avatarUrl String    @map("avatar_url")
+  dob       DateTime?
+  nik       String?    @unique
+  gender    String?
+  avatarUrl String?    @map("avatar_url")
   userId    String    @unique @map("user_id")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

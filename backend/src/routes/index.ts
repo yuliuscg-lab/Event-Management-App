@@ -13,6 +13,7 @@ import paymentRouter from './payment.route';
 import pointRouter from './point.route';
 import couponRouter from './coupon.route';
 import issuedTicketRouter from './issued-ticket.route';
+import dashboardRouter from "./dashboard.route";
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/payments', paymentRouter);
 router.use('/points', pointRouter);
 router.use('/coupons', couponRouter);
 router.use('/issued-tickets', issuedTicketRouter);
+router.use("/dashboards", dashboardRouter);
 
 export default router;

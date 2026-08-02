@@ -1,7 +1,7 @@
 import { prisma } from "../config/prisma";
 import { EventStatus, Prisma } from "@prisma/client";
 
-class EventRepository {
+export class EventRepository {
     async findAll() {
         return prisma.event.findMany({
             where: {
