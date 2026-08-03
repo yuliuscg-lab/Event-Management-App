@@ -78,6 +78,22 @@ class EventController {
             "Event berhasil dihapus",
         );
     }
+
+    async getAttendees(req: Request, res: Response) {
+        const { cuid } = cuidParamSchema.parse(req.params);
+        const data = await eventService.getAttendees(
+            req.userId!,
+            req.userRole!,
+            cuid
+        );
+
+        return success(
+            res,
+            200,
+            "Attendees retrieved successfully",
+            data
+        );
+    }
 }
 
-export const eventController = new EventController()
+export const eventController = new EventController();

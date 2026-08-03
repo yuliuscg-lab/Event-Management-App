@@ -10,21 +10,45 @@ export class UserRepository {
   async findById(db:DB,id:string) {
     return db.user.findUnique({
       where: {id},
-      include:{ profile:true }
+      include:{ 
+        profile:true,
+        coupons: {
+          where: {
+            isUsed: false,
+            expiredAt: { gte: new Date() }
+          }
+        }
+      }
     });
   }
 
   async findByEmail(db:DB,email:string) {
     return db.user.findUnique({
       where: { email },
-      include: { profile:true }
+      include: { 
+        profile:true,
+        coupons: {
+          where: {
+            isUsed: false,
+            expiredAt: { gte: new Date() }
+          }
+        }
+      }
     });
   }
 
   async findByPhone(db:DB,phone:string) {
     return db.user.findUnique({
       where: {phone},
-      include: { profile:true }
+      include: { 
+        profile:true,
+        coupons: {
+          where: {
+            isUsed: false,
+            expiredAt: { gte: new Date() }
+          }
+        }
+      }
     });
   }
 

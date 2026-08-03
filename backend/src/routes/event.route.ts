@@ -17,5 +17,6 @@ router.patch("/:cuid", authenticate, authorize(Role.ADMIN, Role.ORGANIZER), vali
 router.delete("/:cuid", authenticate, authorize(Role.ADMIN, Role.ORGANIZER), eventController.delete.bind(eventController));
 router.get("/:cuid/ticket-types", authenticate, authorize(Role.ADMIN, Role.ORGANIZER), ticketTypeController.getByEventId.bind(ticketTypeController));
 router.post("/:cuid/ticket-types", authenticate, authorize(Role.ADMIN, Role.ORGANIZER), validate(createTicketTypeSchema), ticketTypeController.create.bind(ticketTypeController));
+router.get("/:cuid/attendees", authenticate, authorize(Role.ADMIN, Role.ORGANIZER), eventController.getAttendees.bind(eventController));
 
 export default router;

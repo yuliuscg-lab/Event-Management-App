@@ -14,6 +14,7 @@ import pointRouter from './point.route';
 import couponRouter from './coupon.route';
 import issuedTicketRouter from './issued-ticket.route';
 import dashboardRouter from "./dashboard.route";
+import uploadRouter from "./upload.route";
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/points', pointRouter);
 router.use('/coupons', couponRouter);
 router.use('/issued-tickets', issuedTicketRouter);
 router.use("/dashboards", dashboardRouter);
+router.use("/uploads", uploadRouter);
 
 export default router;

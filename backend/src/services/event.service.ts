@@ -161,12 +161,20 @@ export class EventService {
             }
         }
 
-        const eventDate = data.eventDate ?? event.eventDate;
-        const lastBuyAt = data.lastBuyAt ?? event.lastBuyAt;
+        const startTime = new Date(data.startTime ?? event.startTime);
+        const endTime = new Date(data.endTime ?? event.endTime);
+        const lastBuyAt = new Date(data.lastBuyAt ?? event.lastBuyAt);
 
-        if(lastBuyAt > eventDate) {
+        if (startTime >= endTime) {
             throw new AppError(
-                "Last buy date tidak boleh setelah tanggal event",
+                "Waktu mulai (Start time) harus sebelum waktu selesai (End time)",
+                400
+            );
+        }
+
+        if (lastBuyAt >= startTime) {
+            throw new AppError(
+                "Batas akhir pembelian (Last buy date) harus sebelum waktu mulai event",
                 400
             );
         }
@@ -218,6 +226,25 @@ export class EventService {
         }
         
         return eventRepository.softDelete(id);
+    }
+
+    async getAttendees(userId: string, role: Role, eventId: string) {
+        const event = await this.getById(eventId);
+
+        if (role !== Role.ADMIN && event.organizerId !== userId) {
+            throw new AppError("Anda tidak diizinkan melihat daftar peserta event ini", 403);
+        }
+
+        const attendees = await eventRepository.findAttendeesByEventId(eventId);
+        return {
+            event: {
+                id: event.id,
+                eventTitle: event.eventTitle,
+                eventDate: event.eventDate,
+                status: event.status,
+            },
+            attendees,
+        };
     }
 }
 

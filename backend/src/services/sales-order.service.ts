@@ -240,8 +240,9 @@ export class SalesOrderService {
         return updated;
     }
 
-    
-
+    async findByOrganizer(userId: string, role: Role) {
+        return salesOrderRepository.findByOrganizer(prisma, userId, role);
+    }
 }
 
 export const salesOrderService = new SalesOrderService();

@@ -67,6 +67,39 @@ export class SalesOrderRepository {
             where: { id },
         });
     }
+
+    async findByOrganizer(db: DB, organizerId: string, role: string) {
+        return db.salesOrder.findMany({
+            where: role === "ADMIN" ? {} : {
+                event: {
+                    organizerId,
+                },
+            },
+            include: {
+                customer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                event: {
+                    select: {
+                        id: true,
+                        eventTitle: true,
+                        eventDate: true,
+                        status: true,
+                    },
+                },
+                ticketType: true,
+                payment: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+    }
 }
 
 export const salesOrderRepository = new SalesOrderRepository();

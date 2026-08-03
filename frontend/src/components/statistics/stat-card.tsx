@@ -18,7 +18,8 @@ export const StatsCard = ({ timeframe }: StatsCardProps) => {
             value: data?.totalRevenue ?? 0,
             growth: data?.totalRevenueGrowth ?? 0,
             icon: DollarSign,
-            isCurrency: true
+            isCurrency: true,
+            description:"Dalam 30 hari terakhir"
         },
         {
             title: "Total Tiket Terjual",
@@ -26,6 +27,7 @@ export const StatsCard = ({ timeframe }: StatsCardProps) => {
             growth: data?.totalTicketSoldGrowth ?? 0,
             icon: Ticket,
             isCurrency:false,
+            description:"Dalam 30 hari terakhir"
         },
         {
             title: "Total Event Aktif",
@@ -33,6 +35,7 @@ export const StatsCard = ({ timeframe }: StatsCardProps) => {
             growth: data?.totalActiveEventsGrowth ?? 0,
             icon: Calendar,
             isCurrency:false,
+            description:"Dalam 30 hari terakhir"
         },
     ]
 
@@ -67,6 +70,9 @@ export const StatsCard = ({ timeframe }: StatsCardProps) => {
                                 </div>
                                 
                                 <CardTitle className="font-semibold text-secondary text-xl tracking-wide">{stat.title.toUpperCase()}</CardTitle>
+                                <p className="text-sm text-slate-500">
+                                    {stat.description}
+                                </p>
                             </CardHeader>
                             <CardContent>
                                 <div className="flex items-baseline gap-2">

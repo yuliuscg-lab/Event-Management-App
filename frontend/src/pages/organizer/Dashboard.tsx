@@ -8,7 +8,7 @@ import { Timeframe } from "@/types/dashboard.types"
 
 const timeframes: Timeframe[] = ["1D", "1W", "1M", "YTD"]
 
-export const Dashboard = () => {
+export const Dashboard:React.FC = () => {
     const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>("1D")
 
     return (

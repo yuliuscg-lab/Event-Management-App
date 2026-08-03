@@ -129,6 +129,30 @@ export class EventRepository {
             }
         });
     }
+
+    async findAttendeesByEventId(eventId: string) {
+        return prisma.salesOrder.findMany({
+            where: {
+                eventId,
+                status: "PAID"
+            },
+            include: {
+                customer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                ticketType: true,
+                issuedTickets: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+    }
 }
 
 export const eventRepository = new EventRepository();

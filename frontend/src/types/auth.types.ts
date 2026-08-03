@@ -7,6 +7,7 @@ export interface User {
     role: Role;
     refCode: string;
     balancePoints: number;
+    couponsCount?: number;
     profile?: {
         id: string;
         avatarUrl: string | null;

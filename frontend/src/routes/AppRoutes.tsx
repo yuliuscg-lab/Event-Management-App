@@ -8,6 +8,7 @@ import { ProtectedRoute } from "./ProtectedRoute"
 import { PortalLayout } from "@/components/layout/PortalLayout"
 import { Dashboard } from "@/pages/organizer/Dashboard"
 import { Events } from "@/pages/organizer/Events"
+import { CreateEvent } from "@/pages/organizer/CreateEvent"
 import { Tickets } from "@/pages/organizer/Tickets"
 import { Sales } from "@/pages/organizer/Sales"
 
@@ -27,6 +28,7 @@ export const AppRoutes: React.FC = () => {
                 <Route element={<ProtectedRoute allowedRoles={["ORGANIZER"]}/>}>
                     <Route path="/organizer/portal" element={<PortalLayout children={<Dashboard/>}/>}/>
                     <Route path="/organizer/events" element={<PortalLayout children={<Events/>}/>}/>
+                    <Route path="/organizer/events/create" element={<PortalLayout children={<CreateEvent/>}/>}/>
                     <Route path="/organizer/tickets" element={<PortalLayout children={<Tickets/>}/>}/>
                     <Route path="/organizer/sales" element={<PortalLayout children={<Sales/>}/>}/>
                 </Route>

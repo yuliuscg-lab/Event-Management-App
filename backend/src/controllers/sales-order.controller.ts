@@ -45,6 +45,20 @@ class SalesOrderController {
             order
         );
     }
+
+    async getOrganizerOrders(req: Request, res: Response) {
+        const orders = await salesOrderService.findByOrganizer(
+            req.userId!,
+            req.userRole!
+        );
+
+        return success(
+            res,
+            200,
+            "Organizer orders retrieved successfully",
+            orders
+        );
+    }
 }
 
 export const salesOrderController = new SalesOrderController();
