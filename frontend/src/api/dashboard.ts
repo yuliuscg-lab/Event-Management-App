@@ -2,7 +2,6 @@ import { api } from "@/lib/axios";
 import { DashboardStats, RevenueStreamData, SalesChartPoint, Timeframe } from "@/types/dashboard.types";
 import { ApiResponse } from "@/types/auth.types";
 
-
 export async function fetchDashboardStats(timeframe: Timeframe): Promise<DashboardStats> {
     const response = await api.get<ApiResponse<DashboardStats>>("/dashboards/stats-card-data", {
         params: { timeframe },

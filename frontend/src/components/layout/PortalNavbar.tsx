@@ -25,7 +25,7 @@ export const PortalNavbar = () => {
                 </Field>
             </div>
 
-            {/* Right Action Icons & Responsive Create Button */}
+            {}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -73,7 +73,7 @@ export const PortalNavbar = () => {
                     </TooltipContent>
                 </Tooltip>
 
-                {/* Create Event Button (Responsive: Full text on md+, icon-only on mobile) */}
+                {}
                 <Button 
                     onClick={() => navigate("/organizer/events/create")} 
                     className="h-9 sm:h-10 px-2.5 sm:px-4 cursor-pointer font-semibold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-xs"

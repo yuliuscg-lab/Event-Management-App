@@ -2,7 +2,6 @@ import { fetchDashboardStats, fetchRevenueStream, fetchSalesChart } from "@/api/
 import { Timeframe } from "@/types/dashboard.types";
 import { useQuery } from "@tanstack/react-query";
 
-
 export function useDashboardStats(timeframe: Timeframe) {
     return useQuery({
         queryKey: ["dashboard", "stats", timeframe],

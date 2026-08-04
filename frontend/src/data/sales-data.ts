@@ -18,7 +18,6 @@ export const mockSalesData: SalesDataPoint[] = [
     { date: "2026-08-01 14:00", sales: 1800000 },
     { date: "2026-08-01 16:00", sales: 3100000 },
 
-  // 1W (7 Hari Terakhir)
     { date: "2026-07-26", sales: 2500000 },
     { date: "2026-07-27", sales: 4100000 },
     { date: "2026-07-28", sales: 3200000 },
@@ -26,7 +25,6 @@ export const mockSalesData: SalesDataPoint[] = [
     { date: "2026-07-30", sales: 6200000 },
     { date: "2026-07-31", sales: 4800000 },
 
-  // 1M & YTD (Data Bulanan / Historis)
     { date: "2026-01-15", sales: 15000000 },
     { date: "2026-02-15", sales: 22000000 },
     { date: "2026-03-15", sales: 18000000 },
@@ -42,7 +40,6 @@ export interface CategoryRevenue {
     color?: string
 }
 
-// Data mentah revenue per kategori sesuai timeframe
 export const rawCategoryData: Record<string, CategoryRevenue[]> = {
     "1D": [
         { category: "VIP Festival", revenue: 5200000 },
@@ -167,6 +164,5 @@ export const filterSalesData = (timeframe: string) => {
         default:
             return []
     }
-
 
 }

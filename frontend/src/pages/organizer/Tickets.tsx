@@ -27,14 +27,13 @@ export const Tickets: React.FC = () => {
 
     const [searchQuery, setSearchQuery] = useState<string>("");
 
-    // Load list of published events
     useEffect(() => {
         const loadPublishedEvents = async () => {
             setIsLoadingEvents(true);
             setErrorMsg(null);
             try {
                 const events = await fetchOrganizerEvents();
-                // Filter only PUBLISHED events
+                
                 const published = events.filter((e) => e.status === "PUBLISHED");
                 setPublishedEvents(published);
 
@@ -51,7 +50,6 @@ export const Tickets: React.FC = () => {
         loadPublishedEvents();
     }, []);
 
-    // Load attendees when selectedEventId changes
     useEffect(() => {
         if (!selectedEventId) {
             setAttendees([]);
@@ -74,12 +72,10 @@ export const Tickets: React.FC = () => {
         loadAttendees();
     }, [selectedEventId]);
 
-    // Selected event object
     const selectedEvent = useMemo(() => {
         return publishedEvents.find((e) => e.id === selectedEventId);
     }, [publishedEvents, selectedEventId]);
 
-    // Filter attendees by search query
     const filteredAttendees = useMemo(() => {
         return attendees.filter((att) => {
             const name = att.customer?.name || "";
@@ -97,7 +93,6 @@ export const Tickets: React.FC = () => {
         });
     }, [attendees, searchQuery]);
 
-    // Stats calculation
     const totalBuyers = attendees.length;
     const totalTicketsSold = attendees.reduce((sum, item) => sum + item.qtyTickets, 0);
 
@@ -119,7 +114,7 @@ export const Tickets: React.FC = () => {
 
     return (
         <section id="organizer-tickets" className="flex flex-col gap-6 max-w-7xl mx-auto">
-            {/* Header */}
+            {}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Daftar Peserta Event</h1>
@@ -153,9 +148,9 @@ export const Tickets: React.FC = () => {
                 </Card>
             ) : (
                 <>
-                    {/* Event Selector & Stats Summary */}
+                    {}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                        {/* Event Dropdown Selector Card */}
+                        {}
                         <Card className="lg:col-span-6 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex flex-col justify-center gap-2">
                             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                                 <Filter className="h-3.5 w-3.5 text-primary" />
@@ -174,7 +169,7 @@ export const Tickets: React.FC = () => {
                             </select>
                         </Card>
 
-                        {/* Stats Cards */}
+                        {}
                         <Card className="lg:col-span-3 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex items-center gap-4">
                             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                                 <Users className="h-6 w-6" />
@@ -196,7 +191,7 @@ export const Tickets: React.FC = () => {
                         </Card>
                     </div>
 
-                    {/* Filter & Search Bar */}
+                    {}
                     <Card className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="relative w-full md:w-80">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -217,7 +212,7 @@ export const Tickets: React.FC = () => {
                         )}
                     </Card>
 
-                    {/* Attendee Simple Table */}
+                    {}
                     <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">

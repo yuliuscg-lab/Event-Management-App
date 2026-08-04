@@ -7,6 +7,52 @@ export async function fetchOrganizerEvents(): Promise<EventItem[]> {
     return response.data.data ?? [];
 }
 
+export async function fetchPublicEvents(): Promise<EventItem[]> {
+    const response = await api.get<ApiResponse<EventItem[]>>("/public/events");
+    return response.data.data ?? [];
+}
+
+export async function fetchPublicEventById(id: string): Promise<EventItem> {
+    const response = await api.get<ApiResponse<EventItem>>(`/public/events/${id}`);
+    return response.data.data!;
+}
+
+export interface CheckoutPayload {
+    eventId: string;
+    ticketTypeId: number;
+    qtyTickets: number;
+    couponCode?: string;
+    usePoint?: boolean;
+    paymentMethod: string;
+}
+
+export interface CalculatePayload {
+    eventId: string;
+    ticketTypeId: number;
+    qtyTickets: number;
+    couponCode?: string;
+    usePoint?: boolean;
+}
+
+export interface CalculationResult {
+    subtotal: number;
+    couponId?: number;
+    couponCode?: string;
+    couponDiscount: number;
+    pointUsed: number;
+    finalPrice: number;
+}
+
+export async function calculateCheckout(payload: CalculatePayload): Promise<CalculationResult> {
+    const response = await api.post<ApiResponse<CalculationResult>>("/sales-orders/calculate", payload);
+    return response.data.data!;
+}
+
+export async function checkoutEvent(payload: CheckoutPayload): Promise<any> {
+    const response = await api.post<ApiResponse<any>>("/sales-orders/checkout", payload);
+    return response.data.data;
+}
+
 export async function createOrganizerEvent(payload: CreateEventInput): Promise<EventItem> {
     const response = await api.post<ApiResponse<EventItem>>("/events", payload);
     return response.data.data!;

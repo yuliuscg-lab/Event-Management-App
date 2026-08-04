@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router";
-import { Calendar, MapPin, Search, Pencil, Trash2, AlertCircle, CheckCircle2, X, Loader2, Tag, Ticket, Filter, Eye, CalendarDays, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, MapPin, Search, Pencil, Trash2, AlertCircle, CheckCircle2, X, Loader2, Tag, Ticket, Filter, Eye, CalendarDays, Clock, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { fetchOrganizerEvents, updateOrganizerEvent, deleteOrganizerEvent, fetchCategories, fetchVenues } from "@/api/events";
+import { uploadThumbnail } from "@/api/upload";
 import { Category, EventItem, EventStatus, UpdateEventInput, Venue } from "@/types/event.types";
 import { getErrorMessage } from "@/utils/response";
 import { formatRupiah } from "@/utils/format";
@@ -40,13 +41,57 @@ export const Events: React.FC = () => {
     const [editDesc, setEditDesc] = useState<string>("");
     const [editTnc, setEditTnc] = useState<string>("");
 
-    // Delete Modal State
+    const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
+    const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+
+    const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            setEditErrorMsg("File harus berupa gambar (JPG, PNG, WEBP)!");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setEditErrorMsg("Ukuran gambar maksimal 5MB!");
+            return;
+        }
+
+        setEditErrorMsg(null);
+        setEditSelectedFile(file);
+        const localPreview = URL.createObjectURL(file);
+        setEditImagePreview(localPreview);
+    };
+
+    const handleRemoveEditImage = () => {
+        setEditSelectedFile(null);
+        setEditImagePreview(null);
+        setEditThumbnail("");
+    };
+
+    const handleOpenEdit = (eventItem: EventItem) => {
+        setEditingEvent(eventItem);
+        setEditErrorMsg(null);
+        setEditTitle(eventItem.eventTitle);
+        setEditCategory(eventItem.categoryId);
+        setEditVenue(eventItem.venueId);
+        setEditStatus(eventItem.status);
+        setEditEventDate(toInputDate(eventItem.eventDate));
+        setEditStartTime(toInputDateTimeLocal(eventItem.startTime));
+        setEditEndTime(toInputDateTimeLocal(eventItem.endTime));
+        setEditLastBuyAt(toInputDateTimeLocal(eventItem.lastBuyAt));
+        setEditThumbnail(eventItem.thumbnailUrl || "");
+        setEditImagePreview(eventItem.thumbnailUrl || null);
+        setEditSelectedFile(null);
+        setEditDesc(eventItem.eventDesc);
+        setEditTnc(eventItem.eventTnc);
+        setEditModalOpen(true);
+    };
     const [deleteModalOpen, setDeleteModalOpen] = useState<boolean>(false);
     const [deletingEvent, setDeletingEvent] = useState<EventItem | null>(null);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
     const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
 
-    // Detail / View Modal State
     const [viewModalOpen, setViewModalOpen] = useState<boolean>(false);
     const [viewingEvent, setViewingEvent] = useState<EventItem | null>(null);
 
@@ -91,11 +136,9 @@ export const Events: React.FC = () => {
         });
     }, [events, searchQuery, selectedStatus, selectedCategoryId]);
 
-    // Pagination State
     const ITEMS_PER_PAGE = 5;
     const [currentPage, setCurrentPage] = useState<number>(1);
 
-    // Reset currentPage when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, selectedStatus, selectedCategoryId]);
@@ -113,7 +156,6 @@ export const Events: React.FC = () => {
         return filteredEvents.slice(start, start + ITEMS_PER_PAGE);
     }, [filteredEvents, currentPage]);
 
-    // Statistics
     const stats = useMemo(() => {
         const total = events.length;
         const published = events.filter(e => e.status === "PUBLISHED").length;
@@ -126,7 +168,6 @@ export const Events: React.FC = () => {
         return { total, published, draft, archived, totalTicketsSold };
     }, [events]);
 
-    // Helper to format ISO date for HTML datetime-local input
     const toInputDateTimeLocal = (dateString?: string) => {
         if (!dateString) return "";
         const d = new Date(dateString);
@@ -135,7 +176,6 @@ export const Events: React.FC = () => {
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
-    // Helper to format ISO date for HTML date input
     const toInputDate = (dateString?: string) => {
         if (!dateString) return "";
         const d = new Date(dateString);
@@ -144,33 +184,41 @@ export const Events: React.FC = () => {
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     };
 
-    // Open Edit Modal
-    const handleOpenEdit = (eventItem: EventItem) => {
-        setEditingEvent(eventItem);
-        setEditErrorMsg(null);
-        setEditTitle(eventItem.eventTitle);
-        setEditCategory(eventItem.categoryId);
-        setEditVenue(eventItem.venueId);
-        setEditStatus(eventItem.status);
-        setEditEventDate(toInputDate(eventItem.eventDate));
-        setEditStartTime(toInputDateTimeLocal(eventItem.startTime));
-        setEditEndTime(toInputDateTimeLocal(eventItem.endTime));
-        setEditLastBuyAt(toInputDateTimeLocal(eventItem.lastBuyAt));
-        setEditThumbnail(eventItem.thumbnailUrl || "");
-        setEditDesc(eventItem.eventDesc);
-        setEditTnc(eventItem.eventTnc);
-        setEditModalOpen(true);
-    };
-
-    // Handle Edit Submit
     const handleUpdateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingEvent) return;
+        
+        if (editingEvent?.status === "PUBLISHED") {
+            setEditErrorMsg("Event yang sudah dipublish tidak dapat diubah!");
+            return;
+        }
+
+        if (editStartTime && editEndTime && new Date(editStartTime) >= new Date(editEndTime)) {
+            setEditErrorMsg("Waktu mulai (Start time) harus sebelum waktu selesai (End time)");
+            return;
+        }
+
+        if (editLastBuyAt && editStartTime && new Date(editLastBuyAt) >= new Date(editStartTime)) {
+            setEditErrorMsg("Batas akhir pembelian (Last buy date) harus sebelum waktu mulai event");
+            return;
+        }
 
         setIsUpdating(true);
         setEditErrorMsg(null);
 
         try {
+            let finalThumbnailUrl = editThumbnail;
+
+            if (editSelectedFile) {
+                try {
+                    const uploadRes = await uploadThumbnail(editSelectedFile);
+                    finalThumbnailUrl = uploadRes.url;
+                } catch (uploadErr) {
+                    setEditErrorMsg("Gagal mengunggah gambar ke Cloudinary: " + getErrorMessage(uploadErr));
+                    setIsUpdating(false);
+                    return; 
+                }
+            }
+
             const payload: UpdateEventInput = {
                 eventTitle: editTitle,
                 categoryId: Number(editCategory),
@@ -180,16 +228,16 @@ export const Events: React.FC = () => {
                 startTime: editStartTime ? new Date(editStartTime).toISOString() : undefined,
                 endTime: editEndTime ? new Date(editEndTime).toISOString() : undefined,
                 lastBuyAt: editLastBuyAt ? new Date(editLastBuyAt).toISOString() : undefined,
-                thumbnailUrl: editThumbnail || undefined,
+                thumbnailUrl: finalThumbnailUrl || undefined,
                 eventDesc: editDesc,
                 eventTnc: editTnc,
             };
 
-            const updated = await updateOrganizerEvent(editingEvent.id, payload);
+            const updated = await updateOrganizerEvent(editingEvent!.id, payload);
             
-            // Refresh local state
             setEvents((prev) => prev.map((ev) => (ev.id === updated.id ? { ...ev, ...updated } : ev)));
             setSuccessMsg(`Event "${editTitle}" berhasil diperbarui.`);
+            setEditSelectedFile(null);
             setEditModalOpen(false);
             setEditingEvent(null);
         } catch (err) {
@@ -199,14 +247,12 @@ export const Events: React.FC = () => {
         }
     };
 
-    // Open Delete Confirmation Modal
     const handleOpenDelete = (eventItem: EventItem) => {
         setDeletingEvent(eventItem);
         setDeleteErrorMsg(null);
         setDeleteModalOpen(true);
     };
 
-    // Handle Soft Delete Execution
     const handleConfirmDelete = async () => {
         if (!deletingEvent) return;
 
@@ -226,13 +272,11 @@ export const Events: React.FC = () => {
         }
     };
 
-    // Open Detail Modal
     const handleOpenView = (eventItem: EventItem) => {
         setViewingEvent(eventItem);
         setViewModalOpen(true);
     };
 
-    // Formatters
     const formatDate = (dateStr: string) => {
         try {
             const date = new Date(dateStr);
@@ -288,7 +332,7 @@ export const Events: React.FC = () => {
 
     return (
         <section id="portal-events" className="flex flex-col gap-6 max-w-7xl mx-auto">
-            {/* Top Page Header */}
+            {}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Event Management</h1>
@@ -298,7 +342,7 @@ export const Events: React.FC = () => {
                 </div>
             </div>
 
-            {/* Notification Messages */}
+            {}
             {successMsg && (
                 <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm shadow-sm transition-all">
                     <div className="flex items-center gap-2.5">
@@ -323,7 +367,7 @@ export const Events: React.FC = () => {
                 </div>
             )}
 
-            {/* Stats Summary Cards */}
+            {}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -366,10 +410,10 @@ export const Events: React.FC = () => {
                 </Card>
             </div>
 
-            {/* Filter and Search Toolbar */}
+            {}
             <Card className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    {/* Search Bar */}
+                    {}
                     <div className="relative w-full md:w-80">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
@@ -389,14 +433,14 @@ export const Events: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Filters */}
+                    {}
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                             <Filter className="h-3.5 w-3.5" />
                             <span>Filter:</span>
                         </div>
 
-                        {/* Category Filter */}
+                        {}
                         <select
                             value={selectedCategoryId}
                             onChange={(e) => setSelectedCategoryId(e.target.value)}
@@ -410,7 +454,7 @@ export const Events: React.FC = () => {
                             ))}
                         </select>
 
-                        {/* Status Filter Buttons */}
+                        {}
                         <div className="flex items-center rounded-lg bg-slate-100 p-1 border border-slate-200/80">
                             {["ALL", "PUBLISHED", "DRAFT", "ARCHIVED"].map((status) => {
                                 const isActive = selectedStatus === status;
@@ -433,7 +477,7 @@ export const Events: React.FC = () => {
                 </div>
             </Card>
 
-            {/* Table Card Container */}
+            {}
             <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -516,7 +560,7 @@ export const Events: React.FC = () => {
 
                                     return (
                                         <tr key={ev.id} className="hover:bg-slate-50/80 transition-colors group">
-                                            {/* Event Info */}
+                                            {}
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3.5">
                                                     <div className="relative h-12 w-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 shadow-inner">
@@ -543,7 +587,7 @@ export const Events: React.FC = () => {
                                                 </div>
                                             </td>
 
-                                            {/* Category & Venue */}
+                                            {}
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="inline-flex items-center w-fit text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
@@ -558,7 +602,7 @@ export const Events: React.FC = () => {
                                                 </div>
                                             </td>
 
-                                            {/* Date & Time */}
+                                            {}
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
@@ -574,10 +618,10 @@ export const Events: React.FC = () => {
                                                 </div>
                                             </td>
 
-                                            {/* Status */}
+                                            {}
                                             <td className="px-6 py-4">{renderStatusBadge(ev.status)}</td>
 
-                                            {/* Tickets Sold */}
+                                            {}
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-xs font-bold text-slate-900">
@@ -594,7 +638,7 @@ export const Events: React.FC = () => {
                                                 </div>
                                             </td>
 
-                                            {/* Row Actions */}
+                                            {}
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <Button
@@ -610,9 +654,14 @@ export const Events: React.FC = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        title="Edit Event"
+                                                        title={ev.status === "PUBLISHED" ? "Event yang sudah dipublish tidak dapat diubah" : "Edit Event"}
                                                         onClick={() => handleOpenEdit(ev)}
-                                                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 cursor-pointer"
+                                                        disabled={ev.status === "PUBLISHED"}
+                                                        className={`h-8 w-8 ${
+                                                            ev.status === "PUBLISHED"
+                                                                ? "text-slate-300 cursor-not-allowed opacity-50"
+                                                                : "text-blue-600 hover:text-blue-700 hover:bg-blue-50 cursor-pointer"
+                                                        }`}
                                                     >
                                                         <Pencil className="h-4 w-4" />
                                                     </Button>
@@ -636,7 +685,7 @@ export const Events: React.FC = () => {
                     </table>
                 </div>
 
-                {/* Pagination Controls */}
+                {}
                 {filteredEvents.length > 0 && (
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-slate-200/80 bg-slate-50/50">
                         <div className="text-xs text-slate-500 font-medium">
@@ -689,11 +738,11 @@ export const Events: React.FC = () => {
                 )}
             </Card>
 
-            {/* EDIT EVENT MODAL */}
+            {}
             {editModalOpen && editingEvent && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-                        {/* Modal Header */}
+                        {}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-2.5">
                                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
@@ -712,8 +761,15 @@ export const Events: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Modal Form */}
+                        {}
                         <form onSubmit={handleUpdateSubmit} className="flex flex-col flex-1 overflow-y-auto p-6 gap-4">
+                            {editingEvent?.status === "PUBLISHED" && (
+                                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                                    <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                                    <span>Event yang sudah dipublish tidak dapat diubah (sesuai aturan sistem).</span>
+                                </div>
+                            )}
+
                             {editErrorMsg && (
                                 <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                                     <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
@@ -721,7 +777,7 @@ export const Events: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Judul Event */}
+                            {}
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Judul Event *</label>
                                 <Input
@@ -734,7 +790,7 @@ export const Events: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Kategori & Venue */}
+                            {}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 mb-1">Kategori *</label>
@@ -771,7 +827,7 @@ export const Events: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Status Event */}
+                            {}
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Status Event *</label>
                                 <select
@@ -785,7 +841,7 @@ export const Events: React.FC = () => {
                                 </select>
                             </div>
 
-                            {/* Tanggal & Waktu */}
+                            {}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 mb-1">Tanggal Event *</label>
@@ -834,19 +890,97 @@ export const Events: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Thumbnail URL */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">URL Thumbnail Gambar</label>
+                            {}
+                            <div className="space-y-2">
+                                <label className="block text-xs font-bold text-slate-700">Thumbnail Gambar Event</label>
+
+                                {editImagePreview || editThumbnail ? (
+                                    <div className="relative rounded-xl border border-slate-200 bg-slate-50 p-2 overflow-hidden flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="relative w-20 h-14 rounded-lg bg-slate-200 overflow-hidden shrink-0 border border-slate-300">
+                                                <img
+                                                    src={editImagePreview || editThumbnail}
+                                                    alt="Thumbnail Event"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                {isUpdating && editSelectedFile && (
+                                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center">
+                                                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="space-y-1 min-w-0">
+                                                <p className="text-xs font-semibold text-slate-800 truncate">
+                                                    {editSelectedFile ? "Gambar baru dipilih (siap diunggah)" : "Gambar Saat Ini"}
+                                                </p>
+                                                <p className="text-[11px] text-slate-400 truncate max-w-45 sm:max-w-[260px]">
+                                                    {editSelectedFile ? editSelectedFile.name : (editThumbnail || editImagePreview)}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <label className="cursor-pointer">
+                                                <span className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center gap-1">
+                                                    <Upload className="w-3.5 h-3.5" /> Ganti
+                                                </span>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleEditFileSelect}
+                                                    disabled={isUpdating}
+                                                    className="hidden"
+                                                />
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveEditImage}
+                                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 border border-slate-200 transition-colors cursor-pointer"
+                                                title="Hapus Gambar"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="border-2 border-dashed border-slate-300 hover:border-primary/50 rounded-xl p-4 text-center bg-slate-50/50 hover:bg-slate-50 transition-all">
+                                        <label className="cursor-pointer flex flex-col items-center justify-center space-y-1.5">
+                                            <div className="p-2.5 rounded-full bg-primary/10 text-primary">
+                                                <Upload className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-800">
+                                                    Klik untuk unggah gambar baru
+                                                </p>
+                                                <p className="text-[11px] text-slate-400">
+                                                    PNG, JPG, WEBP hingga 5MB (diunggah ke Cloudinary saat disimpan)
+                                                </p>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleEditFileSelect}
+                                                disabled={isUpdating}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+
                                 <Input
                                     type="url"
                                     value={editThumbnail}
-                                    onChange={(e) => setEditThumbnail(e.target.value)}
-                                    placeholder="https://example.com/image.jpg"
-                                    className="bg-white text-slate-900 border-slate-300 text-sm"
+                                    onChange={(e) => {
+                                        setEditThumbnail(e.target.value);
+                                        setEditImagePreview(e.target.value || null);
+                                        setEditSelectedFile(null);
+                                    }}
+                                    placeholder="Atau masukkan URL gambar langsung (https://...)"
+                                    className="bg-white text-slate-900 border-slate-300 text-xs h-8"
                                 />
                             </div>
 
-                            {/* Deskripsi */}
+                            {}
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Deskripsi Event *</label>
                                 <textarea
@@ -859,38 +993,38 @@ export const Events: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Terms and Conditions */}
+                            {}
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Syarat & Ketentuan (T&C) *</label>
                                 <textarea
                                     required
-                                    rows={2}
+                                    rows={3}
                                     value={editTnc}
                                     onChange={(e) => setEditTnc(e.target.value)}
                                     className="w-full bg-white border border-slate-300 text-slate-900 text-sm rounded-md p-2.5 focus:ring-2 focus:ring-primary/20 focus:outline-none"
-                                    placeholder="Syarat dan ketentuan penukaran tiket..."
+                                    placeholder="Ketentuan kehadiran, pengembalian uang, dll..."
                                 />
                             </div>
 
-                            {/* Modal Footer */}
+                            {}
                             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={() => setEditModalOpen(false)}
-                                    className="text-slate-600"
+                                    className="text-slate-600 cursor-pointer"
                                 >
                                     Batal
                                 </Button>
                                 <Button
                                     type="submit"
-                                    disabled={isUpdating}
-                                    className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center gap-2"
+                                    disabled={isUpdating || editingEvent?.status === "PUBLISHED"}
+                                    className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isUpdating ? (
                                         <>
                                             <Loader2 className="h-4 w-4 animate-spin" />
-                                            <span>Menyimpan...</span>
+                                            <span>{editSelectedFile ? "Mengunggah & Menyimpan..." : "Menyimpan..."}</span>
                                         </>
                                     ) : (
                                         <span>Simpan Perubahan</span>
@@ -902,7 +1036,7 @@ export const Events: React.FC = () => {
                 </div>
             )}
 
-            {/* SOFT DELETE CONFIRMATION MODAL */}
+            {}
             {deleteModalOpen && deletingEvent && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
@@ -975,11 +1109,11 @@ export const Events: React.FC = () => {
                 </div>
             )}
 
-            {/* DETAIL VIEW MODAL */}
+            {}
             {viewModalOpen && viewingEvent && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
-                        {/* Header */}
+                        {}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-2">
                                 <Eye className="h-5 w-5 text-primary" />
@@ -993,7 +1127,7 @@ export const Events: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Content */}
+                        {}
                         <div className="p-6 overflow-y-auto flex flex-col gap-4 text-slate-700 text-sm">
                             {viewingEvent.thumbnailUrl && (
                                 <div className="h-44 w-full rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
@@ -1042,7 +1176,7 @@ export const Events: React.FC = () => {
                                 <p className="text-slate-600 leading-relaxed whitespace-pre-line text-xs">{viewingEvent.eventTnc}</p>
                             </div>
 
-                            {/* Ticket Types Summary */}
+                            {}
                             <div>
                                 <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2">Tipe Tiket</h4>
                                 <div className="flex flex-col gap-2">
@@ -1067,7 +1201,7 @@ export const Events: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Footer */}
+                        {}
                         <div className="p-4 border-t border-slate-100 flex justify-end">
                             <Button variant="outline" onClick={() => setViewModalOpen(false)} className="text-xs">
                                 Tutup

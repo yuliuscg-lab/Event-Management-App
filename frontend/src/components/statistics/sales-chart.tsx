@@ -19,9 +19,21 @@ const chartConfig = {
 
 export const SalesChart = ({ timeframe }:SalesChartProps) => {
     const { data: chartData, isLoading } = useSalesChart(timeframe as Timeframe);
-    const safeChartData = useMemo(() => (Array.isArray(chartData) ? chartData : []), [chartData]);
+    const safeChartData = useMemo(() => {
+        if (!Array.isArray(chartData)) return [];
+        return chartData.map((item) => ({
+            ...item,
+            sales: Number(item.sales) || 0,
+        }));
+    }, [chartData]);
+
     const totalSales = useMemo(() => {
         return safeChartData.reduce((acc, curr) => acc + curr.sales, 0);
+    }, [safeChartData]);
+
+    const maxSales = useMemo(() => {
+        if (safeChartData.length === 0) return 0;
+        return Math.max(...safeChartData.map((d) => d.sales));
     }, [safeChartData]);
     
     return (
@@ -63,8 +75,28 @@ export const SalesChart = ({ timeframe }:SalesChartProps) => {
                             <YAxis
                                 tickLine={false}
                                 axisLine={false}
-                                tickMargin={8}
-                                tickFormatter={(value)=> value >= 100000 ? `${(value/100000).toFixed(0)}Jt`:`${(value/1000).toFixed(0)}Ribu`}
+                                tickMargin={15}
+                                allowDecimals={false}
+                                domain={[0, "auto"]}
+                                tickFormatter={(value) => {
+                                    if (value === 0) return "0";
+
+                                    if (maxSales >= 1_000_000) {
+                                        if (value >= 1_000_000) {
+                                            const jt = value / 1_000_000;
+                                            return `${Number.isInteger(jt) ? jt : jt.toFixed(1)}Jt`;
+                                        }
+                                        const rb = value / 1_000;
+                                        return `${Number.isInteger(rb) ? rb : rb.toFixed(0)}rb`;
+                                    }
+
+                                    if (maxSales >= 1_000) {
+                                        const rb = value / 1_000;
+                                        return `${Number.isInteger(rb) ? rb : rb.toFixed(0)}rb`;
+                                    }
+
+                                    return `${value}`;
+                                }}
                                 className="text-xs text-slate-500 font-medium"/>
                             <Tooltip content={
                                 <ChartTooltipContent formatter={(value) => formatRupiah(Number(value))}/>

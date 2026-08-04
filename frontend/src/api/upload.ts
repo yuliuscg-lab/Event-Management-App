@@ -39,3 +39,20 @@ export async function uploadAvatar(file: File): Promise<UploadImageResponse> {
 
     return response.data.data!;
 }
+
+export async function uploadPaymentProof(file: File): Promise<UploadImageResponse> {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await api.post<ApiResponse<UploadImageResponse>>(
+        "/uploads/payment-proof",
+        formData,
+        {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        }
+    );
+
+    return response.data.data!;
+}

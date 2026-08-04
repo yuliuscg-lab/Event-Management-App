@@ -30,7 +30,6 @@ export const CreateEvent: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    // Form fields
     const [eventTitle, setEventTitle] = useState<string>("");
     const [categoryId, setCategoryId] = useState<number>(0);
     const [venueId, setVenueId] = useState<number>(0);
@@ -42,16 +41,13 @@ export const CreateEvent: React.FC = () => {
     const [eventDesc, setEventDesc] = useState<string>("");
     const [eventTnc, setEventTnc] = useState<string>("");
 
-    // Cloudinary Thumbnail State
     const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-    // Dynamic Ticket Types
     const [ticketTypes, setTicketTypes] = useState<CreateTicketTypeInput[]>([
         { ticketType: "General Admission", price: 50000, quota: 100 },
     ]);
 
-    // Handle File Selection & Cloudinary Upload
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -87,7 +83,6 @@ export const CreateEvent: React.FC = () => {
         setThumbnailUrl("");
     };
 
-    // Load categories & venues on mount
     useEffect(() => {
         const loadOptions = async () => {
             setIsLoadingOptions(true);
@@ -115,7 +110,6 @@ export const CreateEvent: React.FC = () => {
         loadOptions();
     }, []);
 
-    // Add Ticket Type
     const handleAddTicketType = () => {
         setTicketTypes((prev) => [
             ...prev,
@@ -123,7 +117,6 @@ export const CreateEvent: React.FC = () => {
         ]);
     };
 
-    // Remove Ticket Type
     const handleRemoveTicketType = (index: number) => {
         if (ticketTypes.length <= 1) {
             setErrorMsg("Event harus memiliki minimal 1 tipe tiket!");
@@ -132,14 +125,12 @@ export const CreateEvent: React.FC = () => {
         setTicketTypes((prev) => prev.filter((_, idx) => idx !== index));
     };
 
-    // Update Ticket Type field
     const handleTicketTypeChange = (index: number, field: keyof CreateTicketTypeInput, value: string | number) => {
         setTicketTypes((prev) =>
             prev.map((t, idx) => (idx === index ? { ...t, [field]: value } : t))
         );
     };
 
-    // Submit handler
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg(null);
@@ -149,7 +140,6 @@ export const CreateEvent: React.FC = () => {
             return;
         }
 
-        // Client-side validations
         if (!eventTitle.trim()) {
             setErrorMsg("Judul event tidak boleh kosong!");
             return;
@@ -209,7 +199,6 @@ export const CreateEvent: React.FC = () => {
 
             await createOrganizerEvent(payload);
 
-            // Navigate back to events list page with success message
             navigate("/organizer/events", {
                 state: { message: `Event "${eventTitle}" berhasil dibuat!` },
             });

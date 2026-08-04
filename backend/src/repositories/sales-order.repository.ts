@@ -9,10 +9,11 @@ export class SalesOrderRepository {
             },
             include: {
                 customer: true,
-                event:true,
-                ticketType:true,
+                event: true,
+                ticketType: true,
                 coupon: true,
                 payment: true,
+                issuedTickets: true,
             },
         });
     }

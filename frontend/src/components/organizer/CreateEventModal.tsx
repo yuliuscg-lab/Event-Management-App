@@ -31,7 +31,6 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    // Form fields
     const [eventTitle, setEventTitle] = useState<string>("");
     const [categoryId, setCategoryId] = useState<number>(0);
     const [venueId, setVenueId] = useState<number>(0);
@@ -43,12 +42,10 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
     const [eventDesc, setEventDesc] = useState<string>("");
     const [eventTnc, setEventTnc] = useState<string>("");
 
-    // Dynamic Ticket Types
     const [ticketTypes, setTicketTypes] = useState<CreateTicketTypeInput[]>([
         { ticketType: "General Admission", price: 50000, quota: 100 },
     ]);
 
-    // Load categories & venues on mount/open
     useEffect(() => {
         if (!isOpen) return;
 
@@ -78,7 +75,6 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
         loadOptions();
     }, [isOpen]);
 
-    // Add Ticket Type
     const handleAddTicketType = () => {
         setTicketTypes((prev) => [
             ...prev,
@@ -86,7 +82,6 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
         ]);
     };
 
-    // Remove Ticket Type
     const handleRemoveTicketType = (index: number) => {
         if (ticketTypes.length <= 1) {
             setErrorMsg("Event harus memiliki minimal 1 tipe tiket!");
@@ -95,19 +90,16 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
         setTicketTypes((prev) => prev.filter((_, idx) => idx !== index));
     };
 
-    // Update Ticket Type field
     const handleTicketTypeChange = (index: number, field: keyof CreateTicketTypeInput, value: string | number) => {
         setTicketTypes((prev) =>
             prev.map((t, idx) => (idx === index ? { ...t, [field]: value } : t))
         );
     };
 
-    // Submit handler
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg(null);
 
-        // Client-side validations
         if (!eventTitle.trim()) {
             setErrorMsg("Judul event tidak boleh kosong!");
             return;
@@ -167,12 +159,10 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
 
             await createOrganizerEvent(payload);
 
-            // Trigger global event notification for auto-refetching
             window.dispatchEvent(new Event("event-created"));
             onSuccess?.();
             onClose();
 
-            // Reset form
             setEventTitle("");
             setEventDesc("");
             setEventTnc("");
@@ -189,7 +179,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-                {/* Modal Header */}
+                {}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                     <div className="flex items-center gap-2.5">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/20">
@@ -208,7 +198,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                     </button>
                 </div>
 
-                {/* Modal Body / Form */}
+                {}
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-y-auto p-6 gap-5">
                     {errorMsg && (
                         <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2.5 shadow-xs">
@@ -217,13 +207,13 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                         </div>
                     )}
 
-                    {/* Section 1: Informasi Utama Event */}
+                    {}
                     <div className="flex flex-col gap-4">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
                             1. Informasi Utama Event
                         </h4>
 
-                        {/* Judul Event */}
+                        {}
                         <div>
                             <label className="block text-xs font-bold text-slate-700 mb-1">Judul Event *</label>
                             <Input
@@ -236,7 +226,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                             />
                         </div>
 
-                        {/* Kategori & Venue */}
+                        {}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Kategori *</label>
@@ -271,7 +261,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Thumbnail URL */}
+                        {}
                         <div>
                             <label className="block text-xs font-bold text-slate-700 mb-1">URL Gambar Poster / Thumbnail (Opsional)</label>
                             <Input
@@ -283,7 +273,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                             />
                         </div>
 
-                        {/* Deskripsi */}
+                        {}
                         <div>
                             <label className="block text-xs font-bold text-slate-700 mb-1">Deskripsi Event *</label>
                             <textarea
@@ -297,7 +287,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                         </div>
                     </div>
 
-                    {/* Section 2: Jadwal & Tanggal */}
+                    {}
                     <div className="flex flex-col gap-4">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
                             2. Jadwal & Waktu Event
@@ -352,7 +342,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                         </div>
                     </div>
 
-                    {/* Section 3: Tipe Tiket & Kuota */}
+                    {}
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-1">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -424,7 +414,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                         </div>
                     </div>
 
-                    {/* Section 4: Syarat & Ketentuan */}
+                    {}
                     <div className="flex flex-col gap-4">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
                             4. Syarat & Ketentuan (T&C)
@@ -443,7 +433,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
                         </div>
                     </div>
 
-                    {/* Modal Footer */}
+                    {}
                     <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
                         <Button
                             type="button"

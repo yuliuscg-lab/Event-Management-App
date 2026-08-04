@@ -1,4 +1,4 @@
-import { Blocks, LayoutDashboard, LogOut, Search, Ticket, UserCheck, UserIcon } from "lucide-react";
+import { Blocks, LayoutDashboard, LogOut, Search, ShoppingBag, Ticket, UserCheck, UserIcon } from "lucide-react";
 import { NavigationMenu, NavigationMenuItem, NavigationMenuList, NavigationMenuTrigger } from "../ui/navigation-menu";
 import { Link, useNavigate } from "react-router";
 import { Field } from "../ui/field";
@@ -28,7 +28,7 @@ export const Navbar = () => {
         }
     };
 
-    const profileLink = user?.role === "ORGANIZER" ? "/organizer/portal" : "/";
+    const profileLink = user?.role === "ORGANIZER" ? "/organizer/portal" : user?.role === "ADMIN" ? "/admin/portal" : "/";
 
     return (
         <header className="sticky top-0 z-50 border-b border-primary/20 bg-white/95 backdrop-blur-md shadow-xs">
@@ -113,12 +113,23 @@ export const Navbar = () => {
                                     <Link to={profileLink} className="flex items-center gap-2.5 w-full py-2">
                                         {user.role === "ORGANIZER" ? (
                                             <LayoutDashboard className="w-4 h-4 text-slate-600" />
+                                        ) : user.role === "ADMIN" ? (
+                                            <LayoutDashboard className="w-4 h-4 text-slate-600" />
                                         ) : (
                                             <UserCheck className="w-4 h-4 text-slate-600" />
                                         )}
-                                        <span className="text-sm font-medium">{user.role === "ORGANIZER" ? "Portal Saya" : "Profil Saya"}</span>
+                                        <span className="text-sm font-medium">{user.role === "ORGANIZER" || user.role === "ADMIN" ? "Portal Saya" : "Profil Saya"}</span>
                                     </Link>
                                 </DropdownMenuItem>
+
+                                {user.role === "CUSTOMER" && (
+                                    <DropdownMenuItem asChild className="cursor-pointer">
+                                        <Link to="/orders" className="flex items-center gap-2.5 w-full py-2">
+                                            <ShoppingBag className="w-4 h-4 text-slate-600" />
+                                            <span className="text-sm font-medium">My Orders</span>
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
 
                                 <DropdownMenuSeparator className="my-1.5" />
 
