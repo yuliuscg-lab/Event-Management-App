@@ -1,4 +1,4 @@
-// Placeholder untuk global TypeScript type definitions frontend
+
 export interface BaseUser {
   id: number;
   email: string;

@@ -118,6 +118,31 @@ export class SalesOrderService {
         };
     }
 
+    async calculateOrder(customerId: string, payload: { eventId: string; ticketTypeId: number; qtyTickets: number; couponCode?: string; usePoint?: boolean }) {
+        const { ticketType } = await this.validateCheckout(
+            payload.eventId,
+            payload.ticketTypeId,
+            payload.qtyTickets
+        );
+
+        const calculation = await this.calculatePrice(
+            customerId,
+            ticketType.price,
+            payload.qtyTickets,
+            payload.couponCode,
+            payload.usePoint
+        );
+
+        return {
+            subtotal: calculation.subtotal,
+            couponId: calculation.couponId,
+            couponCode: calculation.couponCode,
+            couponDiscount: calculation.couponDiscount,
+            pointUsed: calculation.pointUsed,
+            finalPrice: calculation.finalPrice
+        };
+    }
+
     async checkout(customerId:string, payload:CheckoutOrder) {
         const { event, ticketType } = await this.validateCheckout(
             payload.eventId, 
@@ -240,8 +265,9 @@ export class SalesOrderService {
         return updated;
     }
 
-    
-
+    async findByOrganizer(userId: string, role: Role) {
+        return salesOrderRepository.findByOrganizer(prisma, userId, role);
+    }
 }
 
 export const salesOrderService = new SalesOrderService();

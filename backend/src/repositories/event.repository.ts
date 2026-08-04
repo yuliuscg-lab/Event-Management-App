@@ -1,7 +1,7 @@
 import { prisma } from "../config/prisma";
 import { EventStatus, Prisma } from "@prisma/client";
 
-class EventRepository {
+export class EventRepository {
     async findAll() {
         return prisma.event.findMany({
             where: {
@@ -127,6 +127,30 @@ class EventRepository {
             data:{
                 deletedAt:new Date()
             }
+        });
+    }
+
+    async findAttendeesByEventId(eventId: string) {
+        return prisma.salesOrder.findMany({
+            where: {
+                eventId,
+                status: "PAID"
+            },
+            include: {
+                customer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                ticketType: true,
+                issuedTickets: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
         });
     }
 }

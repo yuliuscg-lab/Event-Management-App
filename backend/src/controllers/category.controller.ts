@@ -4,7 +4,7 @@ import { success } from "../utils/response";
 import { createCategorySchema, updateCategorySchema } from "../validation/category.validator";
 import { idParamSchema } from "../validation/common.validator";
 
-class CategoryController {
+export class CategoryController {
     async getAll(req: Request, res: Response) {
         const categories = await categoryService.getAll();
 

@@ -1,6 +1,11 @@
-import { User } from "@prisma/client";
+import { User, Profile, Coupon } from "@prisma/client";
 
-export function toUserResponse(user:User) {
+type UserWithRelations = User & {
+    profile?: Profile | null;
+    coupons?: Coupon[];
+}
+
+export function toUserResponse(user: UserWithRelations) {
     return {
         id: user.id,
         email: user.email,
@@ -9,8 +14,13 @@ export function toUserResponse(user:User) {
         refCode: user.refCode,
         refCodeInput: user.refCodeInput,
         balancePoints: user.balancePoints,
+        couponsCount: user.coupons ? user.coupons.length : 0,
         role: user.role,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+        updatedAt: user.updatedAt,
+        profile: user.profile ? {
+            id: user.profile.id,
+            avatarUrl: user.profile.avatarUrl,
+        } : null
     };
 }

@@ -1,10 +1,23 @@
 import { Request, Response } from "express";
 import { salesOrderService } from "../services/sales-order.service";
 import { success } from "../utils/response";
-import { checkoutSchema } from "../validation/checkout.validator";
+import { checkoutSchema, calculateSchema } from "../validation/checkout.validator";
 import { cuidParamSchema } from "../validation/common.validator";
 
 class SalesOrderController {
+    async calculate(req: Request, res: Response) {
+        const body = calculateSchema.parse(req.body);
+
+        const result = await salesOrderService.calculateOrder(req.userId!, body);
+
+        return success(
+            res,
+            200,
+            "Perhitungan harga berhasil",
+            result
+        );
+    }
+
     async checkout(req: Request, res: Response) {
         const body = checkoutSchema.parse(req.body);
 
@@ -43,6 +56,20 @@ class SalesOrderController {
             200,
             "Order retrieved successfully",
             order
+        );
+    }
+
+    async getOrganizerOrders(req: Request, res: Response) {
+        const orders = await salesOrderService.findByOrganizer(
+            req.userId!,
+            req.userRole!
+        );
+
+        return success(
+            res,
+            200,
+            "Organizer orders retrieved successfully",
+            orders
         );
     }
 }

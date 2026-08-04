@@ -9,10 +9,11 @@ export class SalesOrderRepository {
             },
             include: {
                 customer: true,
-                event:true,
-                ticketType:true,
+                event: true,
+                ticketType: true,
                 coupon: true,
                 payment: true,
+                issuedTickets: true,
             },
         });
     }
@@ -65,6 +66,39 @@ export class SalesOrderRepository {
     async delete(db:DB, id:string) {
         return db.salesOrder.delete({
             where: { id },
+        });
+    }
+
+    async findByOrganizer(db: DB, organizerId: string, role: string) {
+        return db.salesOrder.findMany({
+            where: role === "ADMIN" ? {} : {
+                event: {
+                    organizerId,
+                },
+            },
+            include: {
+                customer: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
+                event: {
+                    select: {
+                        id: true,
+                        eventTitle: true,
+                        eventDate: true,
+                        status: true,
+                    },
+                },
+                ticketType: true,
+                payment: true,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
         });
     }
 }

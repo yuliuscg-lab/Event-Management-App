@@ -66,10 +66,6 @@ export class CouponService {
         if(coupon.usedInOrderId !== salesOrderId) {
             throw new AppError("Kupon tidak sesuai dengan order!", 400);
         }
-
-        if(coupon.isUsed) {
-            throw new AppError("Kupon sudah digunakan!", 400);
-        }
     }
 
     async releaseCoupon(
