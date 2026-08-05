@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
     CheckCircle2, XCircle, Clock, AlertCircle, Loader2, 
-    Search, Eye, ShieldCheck, User, Ticket, Calendar, X, Sparkles
+    Search, Eye, ShieldCheck, User, Ticket, Calendar, X,
 } from "lucide-react";
 
 export const AdminDashboard: React.FC = () => {
@@ -204,7 +204,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {}
-                <div className="relative min-w-[200px] sm:w-64">
+                <div className="relative min-w-50 sm:w-64">
                     <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <Input
                         type="text"

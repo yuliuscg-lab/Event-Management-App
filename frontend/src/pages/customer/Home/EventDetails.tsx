@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
     ArrowLeft, Calendar, MapPin, Ticket,
     Plus, Minus, Loader2, AlertCircle, CheckCircle2, Sparkles,
 } from "lucide-react";
-import { fetchPublicEventById, checkoutEvent, calculateCheckout, CalculationResult } from "@/api/events";
-import { EventItem, TicketType } from "@/types/event.types";
+import { fetchPublicEventById, checkoutEvent, calculateCheckout } from "@/api/events";
+import { TicketType } from "@/types/event.types";
 import { formatRupiah, formatEventDateTime } from "@/utils/format";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,47 +19,87 @@ export const EventDetails: React.FC = () => {
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuthStore();
 
-    const [event, setEvent] = useState<EventItem | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
     const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
     const [qty, setQty] = useState<number>(1);
     const [couponInput, setCouponInput] = useState<string>("");
     const [appliedCoupon, setAppliedCoupon] = useState<string>("");
     const [couponError, setCouponError] = useState<string | null>(null);
     const [usePoint, setUsePoint] = useState<boolean>(false);
-
-    const [calculation, setCalculation] = useState<CalculationResult | null>(null);
-    const [isCalculating, setIsCalculating] = useState<boolean>(false);
-
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [checkoutError, setCheckoutError] = useState<string | null>(null);
     const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
 
-    useEffect(() => {
-        if (!id) return;
-
-        const loadEventDetails = async () => {
-            setIsLoading(true);
-            setErrorMsg(null);
-            try {
-                const data = await fetchPublicEventById(id);
-                setEvent(data);
-
-                if (data.ticketTypes && data.ticketTypes.length > 0) {
-                    setSelectedTicket(data.ticketTypes[0]);
-                }
-            } catch (err: any) {
-                console.error("Error fetching event details:", err);
-                setErrorMsg(getErrorMessage(err, "Gagal memuat detail event."));
-            } finally {
-                setIsLoading(false);
+    const {
+        data: event,
+        isLoading,
+        isError,
+        error,
+    } = useQuery({
+        queryKey: ["event-detail", id],
+        queryFn: async () => {
+            if (!id) throw new Error("ID Event tidak ditemukan");
+            const data = await fetchPublicEventById(id);
+            if (data.ticketTypes && data.ticketTypes.length > 0 && !selectedTicket) {
+                setSelectedTicket(data.ticketTypes[0]);
             }
-        };
+            return data;
+        },
+        enabled: !!id,
+    });
 
-        loadEventDetails();
-    }, [id]);
+    const shouldCalculate =
+        !!event &&
+        !!selectedTicket &&
+        isAuthenticated &&
+        (usePoint || !!appliedCoupon.trim());
+
+    const {
+        data: calculation,
+        isFetching: isCalculating,
+    } = useQuery({
+        queryKey: [
+            "calculate-checkout",
+            event?.id,
+            selectedTicket?.id,
+            qty,
+            appliedCoupon,
+            usePoint,
+        ],
+        queryFn: async () => {
+            try {
+                const res = await calculateCheckout({
+                    eventId: event!.id,
+                    ticketTypeId: selectedTicket!.id,
+                    qtyTickets: qty,
+                    couponCode: appliedCoupon.trim() || undefined,
+                    usePoint: usePoint,
+                });
+                setCouponError(null);
+                return res;
+            } catch (err: any) {
+                if (appliedCoupon) {
+                    setCouponError(getErrorMessage(err, "Kode kupon tidak valid."));
+                    setAppliedCoupon("");
+                }
+                throw err;
+            }
+        },
+        enabled: shouldCalculate, // Hanya fetch kalkulasi jika syarat terpenuhi
+    });
+
+    const checkoutMutation = useMutation({
+        mutationFn: checkoutEvent,
+        onSuccess: (result) => {
+            setCheckoutSuccess(result);
+            const targetOrderId = result?.orderId || result?.id;
+            if (targetOrderId) {
+                navigate(`/orders/${targetOrderId}`);
+            }
+        },
+        onError: (err: any) => {
+            console.error("Checkout failed:", err);
+            setCheckoutError(getErrorMessage(err, "Gagal melakukan checkout tiket."));
+        },
+    });
 
     const handleSelectTicket = (ticket: TicketType) => {
         setSelectedTicket(ticket);
@@ -66,21 +107,18 @@ export const EventDetails: React.FC = () => {
         setCheckoutError(null);
     };
 
-    const availableQuota = selectedTicket ? (selectedTicket.quota - (selectedTicket.sold ?? 0)) : 0;
+    const availableQuota = selectedTicket ? selectedTicket.quota - (selectedTicket.sold ?? 0) : 0;
 
     const handleIncreaseQty = () => {
-        if (qty < availableQuota) {
-            setQty((prev) => prev + 1);
-        }
+        if (qty < availableQuota) setQty((prev) => prev + 1);
     };
 
     const handleDecreaseQty = () => {
-        if (qty > 1) {
-            setQty((prev) => prev - 1);
-        }
+        if (qty > 1) setQty((prev) => prev - 1);
     };
 
     const subtotal = selectedTicket ? selectedTicket.price * qty : 0;
+    const finalPrice = calculation ? calculation.finalPrice : subtotal;
 
     const handleApplyCoupon = () => {
         if (!couponInput.trim()) return;
@@ -94,47 +132,7 @@ export const EventDetails: React.FC = () => {
         setCouponError(null);
     };
 
-    useEffect(() => {
-        if (!event || !selectedTicket || !isAuthenticated) {
-            setCalculation(null);
-            return;
-        }
-
-        if (!usePoint && !appliedCoupon.trim()) {
-            setCalculation(null);
-            return;
-        }
-
-        const fetchCalculation = async () => {
-            setIsCalculating(true);
-            try {
-                const res = await calculateCheckout({
-                    eventId: event.id,
-                    ticketTypeId: selectedTicket.id,
-                    qtyTickets: qty,
-                    couponCode: appliedCoupon.trim() || undefined,
-                    usePoint: usePoint
-                });
-                setCalculation(res);
-                setCouponError(null);
-            } catch (err: any) {
-                console.error("Failed to calculate price:", err);
-                setCalculation(null);
-                if (appliedCoupon) {
-                    setCouponError(getErrorMessage(err, "Kode kupon tidak valid atau tidak dapat digunakan."));
-                    setAppliedCoupon("");
-                }
-            } finally {
-                setIsCalculating(false);
-            }
-        };
-
-        fetchCalculation();
-    }, [usePoint, appliedCoupon, qty, selectedTicket, isAuthenticated, event]);
-
-    const finalPrice = calculation ? calculation.finalPrice : subtotal;
-
-    const handleCheckout = async () => {
+    const handleCheckout = () => {
         if (!isAuthenticated) {
             navigate("/login");
             return;
@@ -150,30 +148,16 @@ export const EventDetails: React.FC = () => {
             return;
         }
 
-        setIsSubmitting(true);
         setCheckoutError(null);
 
-        try {
-            const result = await checkoutEvent({
-                eventId: event.id,
-                ticketTypeId: selectedTicket.id,
-                qtyTickets: qty,
-                couponCode: appliedCoupon.trim() || undefined,
-                usePoint: usePoint,
-                paymentMethod: "BANK_TRANSFER"
-            });
-
-            setCheckoutSuccess(result);
-            const targetOrderId = result?.orderId || result?.id;
-            if (targetOrderId) {
-                navigate(`/orders/${targetOrderId}`);
-            }
-        } catch (err: any) {
-            console.error("Checkout failed:", err);
-            setCheckoutError(getErrorMessage(err, "Gagal melakukan checkout tiket."));
-        } finally {
-            setIsSubmitting(false);
-        }
+        checkoutMutation.mutate({
+            eventId: event.id,
+            ticketTypeId: selectedTicket.id,
+            qtyTickets: qty,
+            couponCode: appliedCoupon.trim() || undefined,
+            usePoint: usePoint,
+            paymentMethod: "BANK_TRANSFER",
+        });
     };
 
     if (isLoading) {
@@ -185,13 +169,15 @@ export const EventDetails: React.FC = () => {
         );
     }
 
-    if (errorMsg || !event) {
+    if (isError || !event) {
         return (
             <div className="max-w-4xl mx-auto py-12 px-4 text-center">
                 <div className="p-8 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 space-y-4 max-w-md mx-auto">
                     <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
                     <h2 className="text-lg font-bold">Event Tidak Ditemukan</h2>
-                    <p className="text-sm text-rose-600">{errorMsg || "Detail event tidak dapat ditemukan."}</p>
+                    <p className="text-sm text-rose-600">
+                        {getErrorMessage(error, "Detail event tidak dapat ditemukan.")}
+                    </p>
                     <Button asChild variant="outline" className="mt-4">
                         <Link to="/">
                             <ArrowLeft className="w-4 h-4 mr-2" /> Kembali ke Beranda
@@ -203,13 +189,14 @@ export const EventDetails: React.FC = () => {
     }
 
     const locationText = event.venue
-        ? [event.venue.venueName, event.venue.venueAddress, event.venue.venueCity, event.venue.venueState].filter(Boolean).join(", ")
+        ? [event.venue.venueName, event.venue.venueAddress, event.venue.venueCity, event.venue.venueState]
+              .filter(Boolean)
+              .join(", ")
         : "Lokasi belum ditentukan";
 
     return (
         <div className="bg-white text-slate-900 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto space-y-6">
-                {}
                 <div>
                     <Link
                         to="/"
@@ -220,7 +207,6 @@ export const EventDetails: React.FC = () => {
                     </Link>
                 </div>
 
-                {}
                 {checkoutSuccess && (
                     <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-4">
                         <div className="flex items-center gap-3">
@@ -228,7 +214,10 @@ export const EventDetails: React.FC = () => {
                             <div>
                                 <h2 className="text-xl font-bold">Checkout Berhasil!</h2>
                                 <p className="text-sm text-emerald-700">
-                                    Pesanan Anda telah terbuat dengan No. Invoice: <span className="font-bold">{checkoutSuccess.invoiceNumber || checkoutSuccess.id}</span>
+                                    Pesanan Anda telah terbuat dengan No. Invoice:{" "}
+                                    <span className="font-bold">
+                                        {checkoutSuccess.invoiceNumber || checkoutSuccess.id}
+                                    </span>
                                 </p>
                             </div>
                         </div>
@@ -236,11 +225,15 @@ export const EventDetails: React.FC = () => {
                         <div className="bg-white p-4 rounded-xl border border-emerald-100 space-y-2 text-sm text-slate-700">
                             <div className="flex justify-between">
                                 <span>Total Tagihan:</span>
-                                <span className="font-bold text-slate-900">{formatRupiah(checkoutSuccess.finalPrice ?? subtotal)}</span>
+                                <span className="font-bold text-slate-900">
+                                    {formatRupiah(checkoutSuccess.finalPrice ?? subtotal)}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Metode Pembayaran:</span>
-                                <span className="font-semibold">{checkoutSuccess.payment?.paymentMethod || "Bank Transfer"}</span>
+                                <span className="font-semibold">
+                                    {checkoutSuccess.payment?.paymentMethod || "Bank Transfer"}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Status:</span>
@@ -263,11 +256,8 @@ export const EventDetails: React.FC = () => {
                     </div>
                 )}
 
-                {}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {}
                     <div className="lg:col-span-2 space-y-6">
-                        {}
                         <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
                             {event.thumbnailUrl ? (
                                 <img
@@ -283,7 +273,6 @@ export const EventDetails: React.FC = () => {
                             )}
                         </div>
 
-                        {}
                         <div className="space-y-3">
                             {event.category && (
                                 <div className="flex flex-wrap items-center gap-2">
@@ -311,7 +300,6 @@ export const EventDetails: React.FC = () => {
                                 </div>
                             </div>
 
-                            {}
                             <div className="flex items-start gap-3">
                                 <div className="p-2.5 rounded-lg bg-white border border-slate-200 text-primary shrink-0">
                                     <MapPin className="w-5 h-5" />
@@ -324,7 +312,6 @@ export const EventDetails: React.FC = () => {
                             </div>
                         </div>
 
-                        {}
                         <div className="space-y-3 pt-2">
                             <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2">Deskripsi Event</h2>
                             <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
@@ -332,7 +319,6 @@ export const EventDetails: React.FC = () => {
                             </p>
                         </div>
 
-                        {}
                         {event.eventTnc && (
                             <div className="space-y-3 pt-2">
                                 <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2">Syarat & Ketentuan</h2>
@@ -342,10 +328,9 @@ export const EventDetails: React.FC = () => {
                             </div>
                         )}
 
-                        {}
                         <div className="space-y-4 pt-2">
                             <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2">Pilih Jenis Tiket</h2>
-                            {(!event.ticketTypes || event.ticketTypes.length === 0) ? (
+                            {!event.ticketTypes || event.ticketTypes.length === 0 ? (
                                 <p className="text-sm text-slate-500">Belum ada jenis tiket yang tersedia untuk event ini.</p>
                             ) : (
                                 <div className="space-y-3">
@@ -394,7 +379,6 @@ export const EventDetails: React.FC = () => {
                         </div>
                     </div>
 
-                    {}
                     <div className="space-y-6">
                         <Card className="border border-slate-200 bg-white rounded-2xl shadow-xs sticky top-20">
                             <CardContent className="p-6 space-y-5">
@@ -404,14 +388,12 @@ export const EventDetails: React.FC = () => {
 
                                 {selectedTicket ? (
                                     <div className="space-y-4">
-                                        {}
                                         <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
                                             <p className="text-xs text-slate-500 font-medium">Tiket Terpilih:</p>
                                             <p className="text-sm font-bold text-slate-900">{selectedTicket.ticketType}</p>
                                             <p className="text-xs font-semibold text-primary">{formatRupiah(selectedTicket.price)} / tiket</p>
                                         </div>
 
-                                        {}
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm font-medium text-slate-700">Jumlah Tiket:</span>
                                             <div className="flex items-center gap-2 border border-slate-200 rounded-lg p-1">
@@ -435,7 +417,6 @@ export const EventDetails: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {}
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-medium text-slate-600">Kode Kupon (Opsional):</label>
                                             <div className="flex gap-2">
@@ -486,7 +467,6 @@ export const EventDetails: React.FC = () => {
                                             )}
                                         </div>
 
-                                        {}
                                         {isAuthenticated && user && user.balancePoints > 0 && (
                                             <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-200">
                                                 <div className="space-y-0.5">
@@ -502,7 +482,6 @@ export const EventDetails: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {}
                                         {checkoutError && (
                                             <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                                                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -510,7 +489,6 @@ export const EventDetails: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {}
                                         <div className="border-t border-slate-100 pt-3 space-y-2">
                                             <div className="flex justify-between text-xs text-slate-600">
                                                 <span>Subtotal ({qty} tiket):</span>
@@ -543,14 +521,13 @@ export const EventDetails: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {}
                                         <Button
                                             type="button"
                                             onClick={handleCheckout}
-                                            disabled={isSubmitting || availableQuota <= 0}
+                                            disabled={checkoutMutation.isPending || availableQuota <= 0}
                                             className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl shadow-xs transition-all cursor-pointer"
                                         >
-                                            {isSubmitting ? (
+                                            {checkoutMutation.isPending ? (
                                                 <div className="flex items-center justify-center gap-2">
                                                     <Loader2 className="w-4 h-4 animate-spin" />
                                                     <span>Memproses...</span>

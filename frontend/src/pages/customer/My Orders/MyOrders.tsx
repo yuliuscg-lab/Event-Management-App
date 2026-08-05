@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+﻿import React from "react";
 import { Link } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { fetchMyOrders, OrderItem } from "@/api/orders";
 import { formatRupiah, formatEventDateTime } from "@/utils/format";
 import { getErrorMessage } from "@/utils/response";
@@ -11,27 +12,15 @@ import {
 } from "lucide-react";
 
 export const MyOrders: React.FC = () => {
-    const [orders, setOrders] = useState<OrderItem[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-    useEffect(() => {
-        const loadOrders = async () => {
-            setIsLoading(true);
-            setErrorMsg(null);
-            try {
-                const data = await fetchMyOrders();
-                setOrders(data);
-            } catch (err: any) {
-                console.error("Error fetching my orders:", err);
-                setErrorMsg(getErrorMessage(err, "Gagal memuat daftar pesanan."));
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadOrders();
-    }, []);
+    const {
+        data: orders = [],
+        isLoading,
+        isError,
+        error,
+    } = useQuery<OrderItem[]>({
+        queryKey: ["my-orders"],
+        queryFn: fetchMyOrders,
+    });
 
     const getStatusBadge = (order: OrderItem) => {
         const paymentStatus = order.payment?.status;
@@ -84,7 +73,6 @@ export const MyOrders: React.FC = () => {
     return (
         <div className="bg-slate-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-5xl mx-auto space-y-6">
-                {}
                 <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-white border border-slate-200 text-primary shadow-xs">
@@ -101,7 +89,6 @@ export const MyOrders: React.FC = () => {
                     </div>
                 </div>
 
-                {}
                 {isLoading && (
                     <div className="flex flex-col items-center justify-center py-20 space-y-3">
                         <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -109,16 +96,16 @@ export const MyOrders: React.FC = () => {
                     </div>
                 )}
 
-                {}
-                {!isLoading && errorMsg && (
+                {isError && (
                     <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-3 max-w-md mx-auto">
                         <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
-                        <p className="text-sm font-medium">{errorMsg}</p>
+                        <p className="text-sm font-medium">
+                            {getErrorMessage(error, "Gagal memuat daftar pesanan.")}
+                        </p>
                     </div>
                 )}
 
-                {}
-                {!isLoading && !errorMsg && orders.length === 0 && (
+                {!isLoading && !isError && orders.length === 0 && (
                     <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 p-8 max-w-md mx-auto space-y-3 shadow-xs">
                         <Ticket className="w-12 h-12 text-slate-300 mx-auto" />
                         <h3 className="text-lg font-bold text-slate-800">Belum Ada Pesanan</h3>
@@ -131,13 +118,11 @@ export const MyOrders: React.FC = () => {
                     </div>
                 )}
 
-                {}
-                {!isLoading && !errorMsg && orders.length > 0 && (
+                {!isLoading && !isError && orders.length > 0 && (
                     <div className="space-y-4">
                         {orders.map((order) => (
                             <Card key={order.id} className="border border-slate-200 bg-white rounded-xl shadow-xs hover:border-slate-300 transition-all overflow-hidden">
                                 <CardContent className="p-5 space-y-4">
-                                    {}
                                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                                         <div className="space-y-0.5">
                                             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">No. Invoice</p>
@@ -146,7 +131,6 @@ export const MyOrders: React.FC = () => {
                                         <div>{getStatusBadge(order)}</div>
                                     </div>
 
-                                    {}
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                         <div className="flex items-start gap-3 flex-1">
                                             <div className="w-20 h-14 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
@@ -178,7 +162,6 @@ export const MyOrders: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {}
                                         <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 gap-3">
                                             <div className="text-left sm:text-right">
                                                 <p className="text-[11px] text-slate-400 font-semibold">Total Pembayaran</p>

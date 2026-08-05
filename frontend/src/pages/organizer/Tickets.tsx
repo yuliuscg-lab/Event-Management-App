@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
     Ticket, 
     Users, 
@@ -17,60 +18,41 @@ import { AttendeeOrder, EventItem } from "@/types/event.types";
 import { getErrorMessage } from "@/utils/response";
 
 export const Tickets: React.FC = () => {
-    const [publishedEvents, setPublishedEvents] = useState<EventItem[]>([]);
     const [selectedEventId, setSelectedEventId] = useState<string>("");
-    
-    const [attendees, setAttendees] = useState<AttendeeOrder[]>([]);
-    const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(true);
-    const [isLoadingAttendees, setIsLoadingAttendees] = useState<boolean>(false);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
     const [searchQuery, setSearchQuery] = useState<string>("");
 
-    useEffect(() => {
-        const loadPublishedEvents = async () => {
-            setIsLoadingEvents(true);
-            setErrorMsg(null);
-            try {
-                const events = await fetchOrganizerEvents();
-                
-                const published = events.filter((e) => e.status === "PUBLISHED");
-                setPublishedEvents(published);
-
-                if (published.length > 0) {
-                    setSelectedEventId(published[0].id);
-                }
-            } catch (err) {
-                setErrorMsg(getErrorMessage(err));
-            } finally {
-                setIsLoadingEvents(false);
+    const {
+        data: publishedEvents = [],
+        isLoading: isLoadingEvents,
+        isError: isEventsError,
+        error: eventsError,
+    } = useQuery<EventItem[]>({
+        queryKey: ["organizer-published-events"],
+        queryFn: async () => {
+            const events = await fetchOrganizerEvents();
+            const published = events.filter((e) => e.status === "PUBLISHED");
+            
+            if (published.length > 0 && !selectedEventId) {
+                setSelectedEventId(published[0].id);
             }
-        };
+            return published;
+        },
+    });
 
-        loadPublishedEvents();
-    }, []);
-
-    useEffect(() => {
-        if (!selectedEventId) {
-            setAttendees([]);
-            return;
-        }
-
-        const loadAttendees = async () => {
-            setIsLoadingAttendees(true);
-            setErrorMsg(null);
-            try {
-                const res = await fetchEventAttendees(selectedEventId);
-                setAttendees(res.attendees || []);
-            } catch (err) {
-                setErrorMsg(getErrorMessage(err));
-            } finally {
-                setIsLoadingAttendees(false);
-            }
-        };
-
-        loadAttendees();
-    }, [selectedEventId]);
+    const {
+        data: attendees = [],
+        isLoading: isLoadingAttendees,
+        isError: isAttendeesError,
+        error: attendeesError,
+    } = useQuery<AttendeeOrder[]>({
+        queryKey: ["event-attendees", selectedEventId],
+        queryFn: async () => {
+            if (!selectedEventId) return [];
+            const res = await fetchEventAttendees(selectedEventId);
+            return res.attendees || [];
+        },
+        enabled: !!selectedEventId,
+    });
 
     const selectedEvent = useMemo(() => {
         return publishedEvents.find((e) => e.id === selectedEventId);
@@ -112,9 +94,14 @@ export const Tickets: React.FC = () => {
         }
     };
 
+    const errorMsg = isEventsError 
+        ? getErrorMessage(eventsError) 
+        : isAttendeesError 
+        ? getErrorMessage(attendeesError) 
+        : null;
+
     return (
         <section id="organizer-tickets" className="flex flex-col gap-6 max-w-7xl mx-auto">
-            {}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Daftar Peserta Event</h1>
@@ -148,9 +135,7 @@ export const Tickets: React.FC = () => {
                 </Card>
             ) : (
                 <>
-                    {}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                        {}
                         <Card className="lg:col-span-6 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex flex-col justify-center gap-2">
                             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                                 <Filter className="h-3.5 w-3.5 text-primary" />
@@ -169,7 +154,6 @@ export const Tickets: React.FC = () => {
                             </select>
                         </Card>
 
-                        {}
                         <Card className="lg:col-span-3 p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex items-center gap-4">
                             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                                 <Users className="h-6 w-6" />
@@ -191,7 +175,6 @@ export const Tickets: React.FC = () => {
                         </Card>
                     </div>
 
-                    {}
                     <Card className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="relative w-full md:w-80">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -212,7 +195,6 @@ export const Tickets: React.FC = () => {
                         )}
                     </Card>
 
-                    {}
                     <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
     Search, 
     Filter, 
@@ -9,7 +10,7 @@ import {
     Eye, 
     X, 
     DollarSign,
-    Receipt
+    Receipt,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,10 +21,6 @@ import { getErrorMessage } from "@/utils/response";
 import { formatRupiah } from "@/utils/format";
 
 export const Sales: React.FC = () => {
-    const [orders, setOrders] = useState<OrganizerSalesOrder[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<string>("ALL");
     const [selectedEventId, setSelectedEventId] = useState<string>("ALL");
@@ -31,22 +28,15 @@ export const Sales: React.FC = () => {
     const [detailModalOpen, setDetailModalOpen] = useState<boolean>(false);
     const [selectedOrder, setSelectedOrder] = useState<OrganizerSalesOrder | null>(null);
 
-    const loadSalesOrders = async () => {
-        setIsLoading(true);
-        setErrorMsg(null);
-        try {
-            const data = await fetchOrganizerSalesOrders();
-            setOrders(data);
-        } catch (err) {
-            setErrorMsg(getErrorMessage(err));
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadSalesOrders();
-    }, []);
+    const {
+        data: orders = [],
+        isLoading,
+        isError,
+        error,
+    } = useQuery<OrganizerSalesOrder[]>({
+        queryKey: ["organizer-sales-orders"],
+        queryFn: fetchOrganizerSalesOrders,
+    });
 
     const eventOptions = useMemo(() => {
         const map = new Map<string, string>();
@@ -70,7 +60,9 @@ export const Sales: React.FC = () => {
 
             const matchesStatus = 
                 statusFilter === "ALL" || 
-                (statusFilter === "CANCELLED" ? (o.status === "CANCELLED" || o.status === "CANCELLED_EXPIRED") : o.status === statusFilter);
+                (statusFilter === "CANCELLED" 
+                    ? (o.status === "CANCELLED" || o.status === "CANCELLED_EXPIRED") 
+                    : o.status === statusFilter);
 
             const matchesEvent = selectedEventId === "ALL" || o.event?.id === selectedEventId;
 
@@ -154,7 +146,6 @@ export const Sales: React.FC = () => {
 
     return (
         <section id="organizer-sales" className="flex flex-col gap-6 max-w-7xl mx-auto">
-            {}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Sales Orders</h1>
@@ -164,14 +155,13 @@ export const Sales: React.FC = () => {
                 </div>
             </div>
 
-            {errorMsg && (
+            {isError && (
                 <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center gap-2">
                     <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
-                    <span>{errorMsg}</span>
+                    <span>{getErrorMessage(error)}</span>
                 </div>
             )}
 
-            {}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
@@ -214,10 +204,8 @@ export const Sales: React.FC = () => {
                 </Card>
             </div>
 
-            {}
             <Card className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    {}
                     <div className="relative w-full md:w-80">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
@@ -237,14 +225,12 @@ export const Sales: React.FC = () => {
                         )}
                     </div>
 
-                    {}
                     <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                             <Filter className="h-3.5 w-3.5" />
                             <span>Filter:</span>
                         </div>
 
-                        {}
                         <select
                             value={selectedEventId}
                             onChange={(e) => setSelectedEventId(e.target.value)}
@@ -258,7 +244,6 @@ export const Sales: React.FC = () => {
                             ))}
                         </select>
 
-                        {}
                         <div className="flex items-center rounded-lg bg-slate-100 p-1 border border-slate-200/80">
                             {[
                                 { key: "ALL", label: "Semua Status" },
@@ -286,7 +271,6 @@ export const Sales: React.FC = () => {
                 </div>
             </Card>
 
-            {}
             <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -331,14 +315,12 @@ export const Sales: React.FC = () => {
                             ) : (
                                 filteredOrders.map((order) => (
                                     <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
-                                        {}
                                         <td className="px-6 py-4">
                                             <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded border border-slate-200">
                                                 {order.invoiceNumber}
                                             </span>
                                         </td>
 
-                                        {}
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
                                                 <span className="font-semibold text-slate-900 text-sm">
@@ -350,7 +332,6 @@ export const Sales: React.FC = () => {
                                             </div>
                                         </td>
 
-                                        {}
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1">
                                                 <span className="font-medium text-slate-900 text-xs truncate max-w-50">
@@ -367,7 +348,6 @@ export const Sales: React.FC = () => {
                                             </div>
                                         </td>
 
-                                        {}
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-900 text-sm">
@@ -381,17 +361,14 @@ export const Sales: React.FC = () => {
                                             </div>
                                         </td>
 
-                                        {}
                                         <td className="px-6 py-4">
                                             {renderStatusBadge(order.status)}
                                         </td>
 
-                                        {}
                                         <td className="px-6 py-4 text-xs text-slate-500">
                                             {formatDate(order.createdAt)}
                                         </td>
 
-                                        {}
                                         <td className="px-6 py-4 text-right">
                                             <Button
                                                 variant="ghost"
@@ -411,11 +388,9 @@ export const Sales: React.FC = () => {
                 </div>
             </Card>
 
-            {}
             {detailModalOpen && selectedOrder && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-                        {}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-2.5">
                                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -434,15 +409,12 @@ export const Sales: React.FC = () => {
                             </button>
                         </div>
 
-                        {}
                         <div className="p-6 overflow-y-auto flex flex-col gap-4 text-sm text-slate-700">
-                            {}
                             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                                 <span className="text-xs font-semibold text-slate-500">Status Transaksi:</span>
                                 {renderStatusBadge(selectedOrder.status)}
                             </div>
 
-                            {}
                             <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50/60 rounded-xl border border-slate-100 text-xs">
                                 <div>
                                     <span className="text-slate-400 font-medium block">Konsumen</span>
@@ -456,7 +428,6 @@ export const Sales: React.FC = () => {
                                 </div>
                             </div>
 
-                            {}
                             <div>
                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Rincian Tiket</h4>
                                 <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 text-xs">
@@ -470,7 +441,6 @@ export const Sales: React.FC = () => {
                                 </div>
                             </div>
 
-                            {}
                             <div>
                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Rincian Pembayaran</h4>
                                 <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
@@ -500,7 +470,6 @@ export const Sales: React.FC = () => {
                                 </div>
                             </div>
 
-                            {}
                             <div className="text-xs text-slate-400 flex flex-col gap-1">
                                 <div>Waktu Pemesanan: <strong className="text-slate-600">{formatDate(selectedOrder.createdAt)}</strong></div>
                                 {selectedOrder.payment?.paymentMethod && (
@@ -509,7 +478,6 @@ export const Sales: React.FC = () => {
                             </div>
                         </div>
 
-                        {}
                         <div className="p-4 border-t border-slate-100 flex justify-end">
                             <Button variant="outline" onClick={() => setDetailModalOpen(false)} className="text-xs">
                                 Tutup
