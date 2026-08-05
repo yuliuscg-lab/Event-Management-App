@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useParams, Link } from "react-router";
-import { fetchOrderById, submitPaymentProof, OrderItem } from "@/api/orders";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchOrderById, submitPaymentProof } from "@/api/orders";
 import { uploadPaymentProof } from "@/api/upload";
 import { formatRupiah, formatEventDateTime } from "@/utils/format";
 import { getErrorMessage } from "@/utils/response";
@@ -13,35 +14,51 @@ import {
 
 export const OrderDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const [order, setOrder] = useState<OrderItem | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const queryClient = useQueryClient();
+
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const [isUploading, setIsUploading] = useState<boolean>(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
     const [copied, setCopied] = useState<boolean>(false);
 
-    const loadOrderDetails = async () => {
-        if (!id) return;
-        setIsLoading(true);
-        setErrorMsg(null);
-        try {
-            const data = await fetchOrderById(id);
-            setOrder(data);
-        } catch (err: any) {
-            console.error("Error fetching order details:", err);
-            setErrorMsg(getErrorMessage(err, "Gagal memuat detail pesanan."));
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const {
+        data: order,
+        isLoading,
+        isError,
+        error,
+    } = useQuery({
+        queryKey: ["order-detail", id],
+        queryFn: async () => {
+            if (!id) throw new Error("ID Pesanan tidak ditemukan");
+            return await fetchOrderById(id);
+        },
+        enabled: !!id,
+    });
 
-    useEffect(() => {
-        loadOrderDetails();
-    }, [id]);
+    const uploadProofMutation = useMutation({
+        mutationFn: async (file: File) => {
+            if (!order?.payment?.id) {
+                throw new Error("ID Pembayaran tidak ditemukan.");
+            }
+
+            const cloudRes = await uploadPaymentProof(file);
+
+            return await submitPaymentProof(order.payment.id, cloudRes.url);
+        },
+        onSuccess: () => {
+            setUploadSuccess("Bukti pembayaran berhasil diunggah! Menunggu verifikasi admin.");
+            setSelectedFile(null);
+            setPreviewUrl(null);
+
+            queryClient.invalidateQueries({ queryKey: ["order-detail", id] });
+        },
+        onError: (err: any) => {
+            console.error("Upload proof failed:", err);
+            setUploadError(getErrorMessage(err, "Gagal mengunggah bukti pembayaran."));
+        },
+    });
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -55,37 +72,18 @@ export const OrderDetails: React.FC = () => {
         setSelectedFile(file);
         setUploadError(null);
         setUploadSuccess(null);
-        const objectUrl = URL.createObjectURL(file);
-        setPreviewUrl(objectUrl);
+        setPreviewUrl(URL.createObjectURL(file));
     };
 
-    const handleUploadProof = async () => {
-        if (!selectedFile || !order?.payment?.id) {
+    const handleUploadProof = () => {
+        if (!selectedFile) {
             setUploadError("Silakan pilih file bukti pembayaran terlebih dahulu.");
             return;
         }
-
-        setIsUploading(true);
         setUploadError(null);
         setUploadSuccess(null);
 
-        try {
-            
-            const cloudRes = await uploadPaymentProof(selectedFile);
-
-            await submitPaymentProof(order.payment.id, cloudRes.url);
-
-            setUploadSuccess("Bukti pembayaran berhasil diunggah! Menunggu verifikasi admin.");
-            setSelectedFile(null);
-            setPreviewUrl(null);
-
-            await loadOrderDetails();
-        } catch (err: any) {
-            console.error("Upload proof failed:", err);
-            setUploadError(getErrorMessage(err, "Gagal mengunggah bukti pembayaran."));
-        } finally {
-            setIsUploading(false);
-        }
+        uploadProofMutation.mutate(selectedFile);
     };
 
     const handleCopyAccount = (text: string) => {
@@ -103,13 +101,15 @@ export const OrderDetails: React.FC = () => {
         );
     }
 
-    if (errorMsg || !order) {
+    if (isError || !order) {
         return (
             <div className="max-w-3xl mx-auto py-12 px-4 text-center">
                 <div className="p-8 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 space-y-4 max-w-md mx-auto">
                     <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
                     <h2 className="text-lg font-bold">Pesanan Tidak Ditemukan</h2>
-                    <p className="text-sm text-rose-600">{errorMsg || "Detail pesanan tidak dapat ditemukan."}</p>
+                    <p className="text-sm text-rose-600">
+                        {getErrorMessage(error, "Detail pesanan tidak dapat ditemukan.")}
+                    </p>
                     <Button asChild variant="outline" className="mt-4">
                         <Link to="/orders">
                             <ArrowLeft className="w-4 h-4 mr-2" /> Kembali ke Pesanan Saya
@@ -132,7 +132,6 @@ export const OrderDetails: React.FC = () => {
     return (
         <div className="bg-slate-50 min-h-screen py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto space-y-6">
-                {}
                 <div className="flex items-center justify-between">
                     <Button asChild variant="outline" size="sm" className="bg-white hover:bg-slate-50">
                         <Link to="/orders">
@@ -146,11 +145,8 @@ export const OrderDetails: React.FC = () => {
                     </div>
                 </div>
 
-                {}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {}
                     <div className="lg:col-span-2 space-y-6">
-                        {}
                         <Card className="border border-slate-200 bg-white rounded-2xl shadow-xs overflow-hidden">
                             <CardContent className="p-6 space-y-4">
                                 <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
@@ -184,7 +180,6 @@ export const OrderDetails: React.FC = () => {
                             </CardContent>
                         </Card>
 
-                        {}
                         <Card className="border border-slate-200 bg-white rounded-2xl shadow-xs">
                             <CardContent className="p-6 space-y-4">
                                 <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
@@ -222,7 +217,6 @@ export const OrderDetails: React.FC = () => {
                             </CardContent>
                         </Card>
 
-                        {}
                         {order.issuedTickets && order.issuedTickets.length > 0 && (
                             <Card className="border border-emerald-200 bg-emerald-50/40 rounded-2xl shadow-xs overflow-hidden">
                                 <CardContent className="p-6 space-y-4">
@@ -287,9 +281,7 @@ export const OrderDetails: React.FC = () => {
                         )}
                     </div>
 
-                    {}
                     <div className="space-y-6">
-                        {}
                         <Card className="border border-slate-200 bg-white rounded-2xl shadow-xs">
                             <CardContent className="p-6 space-y-4">
                                 <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
@@ -344,7 +336,6 @@ export const OrderDetails: React.FC = () => {
                                     </div>
                                 )}
 
-                                {}
                                 {(isWaitingUpload || isWaitingVerification) && !isEventPassed && (
                                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                                         <p className="text-xs font-semibold text-slate-500">Metode Transfer Bank:</p>
@@ -366,7 +357,6 @@ export const OrderDetails: React.FC = () => {
                                     </div>
                                 )}
 
-                                {}
                                 {(isWaitingUpload || isRejected) && !isEventPassed && (
                                     <div className="space-y-3 pt-2">
                                         <label className="block text-xs font-bold text-slate-800">
@@ -423,10 +413,10 @@ export const OrderDetails: React.FC = () => {
                                         <Button
                                             type="button"
                                             onClick={handleUploadProof}
-                                            disabled={!selectedFile || isUploading}
+                                            disabled={!selectedFile || uploadProofMutation.isPending}
                                             className="w-full bg-primary hover:bg-primary/90 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
                                         >
-                                            {isUploading ? (
+                                            {uploadProofMutation.isPending ? (
                                                 <div className="flex items-center justify-center gap-2">
                                                     <Loader2 className="w-4 h-4 animate-spin" />
                                                     <span>Mengunggah...</span>
@@ -438,7 +428,6 @@ export const OrderDetails: React.FC = () => {
                                     </div>
                                 )}
 
-                                {}
                                 {order.payment?.paymentProof && (
                                     <div className="space-y-2 pt-2 border-t border-slate-100">
                                         <p className="text-xs font-semibold text-slate-700">Bukti Pembayaran Terunggah:</p>

@@ -1,33 +1,22 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate } from "react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-    ArrowLeft, 
-    Plus, 
-    Trash2, 
-    Loader2, 
-    AlertCircle, 
-    Sparkles,
-    Upload,
-    Image as ImageIcon,
-    X,
-    CheckCircle2
+    ArrowLeft, Plus, Trash2, Loader2, AlertCircle, Sparkles,
+    Upload, X, CheckCircle2
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createOrganizerEvent, fetchCategories, fetchVenues } from "@/api/events";
 import { uploadThumbnail } from "@/api/upload";
-import { Category, CreateEventInput, CreateTicketTypeInput, Venue } from "@/types/event.types";
+import { CreateEventInput, CreateTicketTypeInput } from "@/types/event.types";
 import { getErrorMessage } from "@/utils/response";
 
 export const CreateEvent: React.FC = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [venues, setVenues] = useState<Venue[]>([]);
-    const [isLoadingOptions, setIsLoadingOptions] = useState<boolean>(true);
-
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     const [eventTitle, setEventTitle] = useState<string>("");
@@ -40,15 +29,61 @@ export const CreateEvent: React.FC = () => {
     const [thumbnailUrl, setThumbnailUrl] = useState<string>("");
     const [eventDesc, setEventDesc] = useState<string>("");
     const [eventTnc, setEventTnc] = useState<string>("");
-
-    const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     const [ticketTypes, setTicketTypes] = useState<CreateTicketTypeInput[]>([
         { ticketType: "General Admission", price: 50000, quota: 100 },
     ]);
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { isLoading: isLoadingOptions, data: options } = useQuery({
+        queryKey: ["create-event-options"],
+        queryFn: async () => {
+            const [cats, vens] = await Promise.all([
+                fetchCategories(),
+                fetchVenues(),
+            ]);
+
+            if (cats.length > 0 && categoryId === 0) {
+                setCategoryId(cats[0].id);
+            }
+            if (vens.length > 0 && venueId === 0) {
+                setVenueId(vens[0].id);
+            }
+
+            return { categories: cats, venues: vens };
+        },
+    });
+
+    const categories = options?.categories || [];
+    const venues = options?.venues || [];
+
+    const uploadImageMutation = useMutation({
+        mutationFn: uploadThumbnail,
+        onSuccess: (res) => {
+            setThumbnailUrl(res.url);
+        },
+        onError: (err) => {
+            setErrorMsg("Gagal mengunggah gambar ke Cloudinary: " + getErrorMessage(err));
+            setImagePreview(null);
+            setThumbnailUrl("");
+        },
+    });
+
+    const createEventMutation = useMutation({
+        mutationFn: createOrganizerEvent,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["organizer-events"] });
+
+            navigate("/organizer/events", {
+                state: { message: `Event "${eventTitle}" berhasil dibuat!` },
+            });
+        },
+        onError: (err) => {
+            setErrorMsg(getErrorMessage(err));
+        },
+    });
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -62,53 +97,15 @@ export const CreateEvent: React.FC = () => {
         }
 
         setErrorMsg(null);
-        const localPreview = URL.createObjectURL(file);
-        setImagePreview(localPreview);
+        setImagePreview(URL.createObjectURL(file));
 
-        setIsUploadingImage(true);
-        try {
-            const res = await uploadThumbnail(file);
-            setThumbnailUrl(res.url);
-        } catch (err) {
-            setErrorMsg("Gagal mengunggah gambar ke Cloudinary: " + getErrorMessage(err));
-            setImagePreview(null);
-            setThumbnailUrl("");
-        } finally {
-            setIsUploadingImage(false);
-        }
+        uploadImageMutation.mutate(file);
     };
 
     const handleRemoveImage = () => {
         setImagePreview(null);
         setThumbnailUrl("");
     };
-
-    useEffect(() => {
-        const loadOptions = async () => {
-            setIsLoadingOptions(true);
-            try {
-                const [cats, vens] = await Promise.all([
-                    fetchCategories(),
-                    fetchVenues(),
-                ]);
-                setCategories(cats);
-                setVenues(vens);
-
-                if (cats.length > 0) {
-                    setCategoryId(cats[0].id);
-                }
-                if (vens.length > 0) {
-                    setVenueId(vens[0].id);
-                }
-            } catch (err) {
-                console.error("Gagal memuat kategori/venue:", err);
-            } finally {
-                setIsLoadingOptions(false);
-            }
-        };
-
-        loadOptions();
-    }, []);
 
     const handleAddTicketType = () => {
         setTicketTypes((prev) => [
@@ -131,11 +128,11 @@ export const CreateEvent: React.FC = () => {
         );
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setErrorMsg(null);
 
-        if (isUploadingImage) {
+        if (uploadImageMutation.isPending) {
             setErrorMsg("Mohon tunggu hingga proses unggah gambar ke Cloudinary selesai!");
             return;
         }
@@ -176,37 +173,25 @@ export const CreateEvent: React.FC = () => {
             }
         }
 
-        setIsSubmitting(true);
+        const payload: CreateEventInput = {
+            eventTitle: eventTitle.trim(),
+            categoryId: Number(categoryId),
+            venueId: Number(venueId),
+            eventDate: new Date(eventDate).toISOString(),
+            startTime: new Date(startTime).toISOString(),
+            endTime: new Date(endTime).toISOString(),
+            lastBuyAt: new Date(lastBuyAt).toISOString(),
+            thumbnailUrl: thumbnailUrl.trim() || undefined,
+            eventDesc: eventDesc.trim(),
+            eventTnc: eventTnc.trim(),
+            ticketTypes: ticketTypes.map((t) => ({
+                ticketType: t.ticketType.trim(),
+                price: Number(t.price),
+                quota: Number(t.quota),
+            })),
+        };
 
-        try {
-            const payload: CreateEventInput = {
-                eventTitle: eventTitle.trim(),
-                categoryId: Number(categoryId),
-                venueId: Number(venueId),
-                eventDate: new Date(eventDate).toISOString(),
-                startTime: new Date(startTime).toISOString(),
-                endTime: new Date(endTime).toISOString(),
-                lastBuyAt: new Date(lastBuyAt).toISOString(),
-                thumbnailUrl: thumbnailUrl.trim() || undefined,
-                eventDesc: eventDesc.trim(),
-                eventTnc: eventTnc.trim(),
-                ticketTypes: ticketTypes.map((t) => ({
-                    ticketType: t.ticketType.trim(),
-                    price: Number(t.price),
-                    quota: Number(t.quota),
-                })),
-            };
-
-            await createOrganizerEvent(payload);
-
-            navigate("/organizer/events", {
-                state: { message: `Event "${eventTitle}" berhasil dibuat!` },
-            });
-        } catch (err) {
-            setErrorMsg(getErrorMessage(err));
-        } finally {
-            setIsSubmitting(false);
-        }
+        createEventMutation.mutate(payload);
     };
 
     return (
@@ -316,7 +301,7 @@ export const CreateEvent: React.FC = () => {
                                             Hapus Gambar
                                         </Button>
                                     </div>
-                                    {isUploadingImage ? (
+                                    {uploadImageMutation.isPending ? (
                                         <div className="absolute inset-0 bg-white/85 backdrop-blur-xs flex flex-col items-center justify-center gap-2 text-primary font-semibold text-xs">
                                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                             <span>Mengunggah gambar ke Cloudinary...</span>
@@ -530,13 +515,13 @@ export const CreateEvent: React.FC = () => {
                         </Button>
                         <Button
                             type="submit"
-                            disabled={isSubmitting || isLoadingOptions}
+                            disabled={createEventMutation.isPending || isLoadingOptions || uploadImageMutation.isPending}
                             className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center gap-2 px-6 cursor-pointer"
                         >
-                            {isSubmitting ? (
+                            {createEventMutation.isPending ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span>Mendaftarkan Event...</span>
+                                    <span>Mendaftarkan...</span>
                                 </>
                             ) : (
                                 <span>Daftarkan Event Baru</span>
